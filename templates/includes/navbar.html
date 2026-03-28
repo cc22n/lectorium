@@ -1,0 +1,148 @@
+<nav class="border-b border-subtle bg-white/60 backdrop-blur-sm sticky top-0 z-50">
+  <div class="max-w-5xl mx-auto px-6">
+    <div class="flex items-center justify-between h-14">
+
+      <!-- Logo -->
+      <a href="{% url 'clubs:home' %}" class="flex items-center gap-2 group">
+        <span class="text-xl font-serif font-semibold text-ink tracking-tight group-hover:text-accent transition-colors">
+          Lectorium
+        </span>
+      </a>
+
+      <!-- Nav links — desktop -->
+      <div class="hidden sm:flex items-center gap-6 text-sm">
+        <a href="{% url 'clubs:home' %}"
+           class="text-muted hover:text-ink transition-colors{% if request.resolver_match.url_name == 'home' %} text-ink font-medium{% endif %}">
+          Inicio
+        </a>
+        <a href="{% url 'clubs:explore' %}"
+           class="text-muted hover:text-ink transition-colors{% if request.resolver_match.url_name == 'explore' %} text-ink font-medium{% endif %}">
+          Explorar
+        </a>
+
+        {% if user.is_authenticated %}
+          <a href="{% url 'clubs:create' %}"
+             class="text-muted hover:text-ink transition-colors{% if request.resolver_match.url_name == 'create' %} text-ink font-medium{% endif %}">
+            Crear club
+          </a>
+
+          <!-- User dropdown -->
+          <div class="relative">
+            <button class="flex items-center gap-2 text-muted hover:text-ink transition-colors"
+                    onclick="this.parentElement.querySelector('.dropdown-menu').classList.toggle('hidden')">
+              <span class="w-7 h-7 rounded-full bg-accent/20 flex items-center justify-center text-xs font-medium text-accent-dark">
+                {{ user.display_name|default:user.username|truncatechars:1|upper }}
+              </span>
+              <span>{{ user.display_name|default:user.username }}</span>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+
+            <div class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-subtle py-1 z-50">
+              <a href="{% url 'accounts:profile' %}" class="block px-4 py-2 text-sm text-muted hover:bg-warm hover:text-ink transition-colors">
+                Mi perfil
+              </a>
+              <hr class="my-1 border-subtle">
+              <form method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-muted hover:bg-warm hover:text-ink transition-colors">
+                  Cerrar sesion
+                </button>
+              </form>
+            </div>
+          </div>
+        {% else %}
+          <a href="{% url 'accounts:login' %}" class="text-muted hover:text-ink transition-colors">
+            Entrar
+          </a>
+          <a href="{% url 'accounts:register' %}"
+             class="px-4 py-1.5 bg-ink text-white text-sm rounded-lg hover:bg-ink/90 transition-colors">
+            Registrarse
+          </a>
+        {% endif %}
+      </div>
+
+      <!-- Hamburger — mobile -->
+      <button id="nav-toggle" class="sm:hidden p-2 text-muted hover:text-ink transition-colors"
+              aria-label="Abrir menú" aria-expanded="false" aria-controls="mobile-menu">
+        <svg id="nav-icon-open" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+        <svg id="nav-icon-close" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- Mobile menu -->
+  <div id="mobile-menu" class="hidden sm:hidden border-t border-subtle bg-white">
+    <div class="max-w-5xl mx-auto px-6 py-3 space-y-1">
+      <a href="{% url 'clubs:home' %}"
+         class="block px-3 py-2 rounded-lg text-sm text-muted hover:bg-warm hover:text-ink transition-colors{% if request.resolver_match.url_name == 'home' %} text-ink font-medium bg-warm{% endif %}">
+        Inicio
+      </a>
+      <a href="{% url 'clubs:explore' %}"
+         class="block px-3 py-2 rounded-lg text-sm text-muted hover:bg-warm hover:text-ink transition-colors{% if request.resolver_match.url_name == 'explore' %} text-ink font-medium bg-warm{% endif %}">
+        Explorar
+      </a>
+
+      {% if user.is_authenticated %}
+        <a href="{% url 'clubs:create' %}"
+           class="block px-3 py-2 rounded-lg text-sm text-muted hover:bg-warm hover:text-ink transition-colors">
+          Crear club
+        </a>
+        <a href="{% url 'accounts:profile' %}"
+           class="block px-3 py-2 rounded-lg text-sm text-muted hover:bg-warm hover:text-ink transition-colors">
+          Mi perfil
+        </a>
+        <div class="pt-2 border-t border-subtle">
+          <form method="post" action="{% url 'accounts:logout' %}">
+            {% csrf_token %}
+            <button type="submit"
+                    class="block w-full text-left px-3 py-2 rounded-lg text-sm text-muted hover:bg-warm hover:text-ink transition-colors">
+              Cerrar sesion
+            </button>
+          </form>
+        </div>
+      {% else %}
+        <div class="pt-2 flex gap-2 border-t border-subtle">
+          <a href="{% url 'accounts:login' %}"
+             class="flex-1 text-center px-3 py-2 border border-subtle rounded-lg text-sm text-muted hover:bg-warm transition-colors">
+            Entrar
+          </a>
+          <a href="{% url 'accounts:register' %}"
+             class="flex-1 text-center px-3 py-2 bg-ink text-white rounded-lg text-sm hover:bg-ink/90 transition-colors">
+            Registrarse
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<script>
+(function() {
+  var btn = document.getElementById('nav-toggle');
+  var menu = document.getElementById('mobile-menu');
+  var iconOpen = document.getElementById('nav-icon-open');
+  var iconClose = document.getElementById('nav-icon-close');
+
+  btn.addEventListener('click', function() {
+    var isOpen = !menu.classList.contains('hidden');
+    menu.classList.toggle('hidden', isOpen);
+    iconOpen.classList.toggle('hidden', !isOpen);
+    iconClose.classList.toggle('hidden', isOpen);
+    btn.setAttribute('aria-expanded', String(!isOpen));
+  });
+
+  // Cerrar dropdown de usuario al hacer click fuera
+  document.addEventListener('click', function(e) {
+    document.querySelectorAll('.dropdown-menu').forEach(function(m) {
+      if (!m.parentElement.contains(e.target)) m.classList.add('hidden');
+    });
+  });
+})();
+</script>

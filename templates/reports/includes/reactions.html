@@ -1,0 +1,27 @@
+{% comment %}
+Seccion de reacciones para un reporte. Incluir desde detail.html que ya carga report_extras.
+Variables: report, reaction_types, reaction_counts, user_reactions (set de tipos activos), can_react
+{% endcomment %}
+{% load report_extras %}
+<div class="flex flex-wrap gap-2">
+  {% for rt, label in reaction_types %}
+  {% if can_react %}
+  <button
+    hx-post="{% url 'reports:react' report.pk %}"
+    hx-vals='{"type": "{{ rt }}"}'
+    hx-target="this"
+    hx-swap="outerHTML"
+    class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors
+      {% if rt in user_reactions %}bg-accent/20 text-accent-dark border border-accent/30
+      {% else %}bg-warm text-muted border border-subtle hover:bg-accent/10{% endif %}">
+    {{ label }}
+    <span class="font-semibold">{{ reaction_counts|get_item:rt }}</span>
+  </button>
+  {% else %}
+  <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs bg-warm text-muted border border-subtle">
+    {{ label }}
+    <span class="font-semibold">{{ reaction_counts|get_item:rt }}</span>
+  </span>
+  {% endif %}
+  {% endfor %}
+</div>

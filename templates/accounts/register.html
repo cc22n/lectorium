@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Registrarse — Lectorium{% endblock %}
+
+{% block content %}
+<div class="max-w-sm mx-auto py-12">
+  <div class="text-center mb-8">
+    <h1 class="font-serif text-2xl font-semibold">Crear cuenta</h1>
+    <p class="text-sm text-muted mt-1">Unete a la comunidad de lectores</p>
+  </div>
+
+  <form method="post" class="space-y-4">
+    {% csrf_token %}
+
+    <div>
+      <label for="id_username" class="block text-sm font-medium text-ink mb-1.5">Usuario</label>
+      <input type="text" name="username" id="id_username" autofocus
+             value="{{ form.username.value|default:'' }}"
+             class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent"
+             required>
+      {% if form.username.errors %}
+      <p class="text-xs text-red-600 mt-1">{{ form.username.errors.0 }}</p>
+      {% endif %}
+    </div>
+
+    <div>
+      <label for="id_display_name" class="block text-sm font-medium text-ink mb-1.5">Nombre publico</label>
+      <input type="text" name="display_name" id="id_display_name"
+             value="{{ form.display_name.value|default:'' }}"
+             class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent"
+             placeholder="Como quieres que te vean otros lectores">
+    </div>
+
+    <div>
+      <label for="id_email" class="block text-sm font-medium text-ink mb-1.5">Email</label>
+      <input type="email" name="email" id="id_email"
+             value="{{ form.email.value|default:'' }}"
+             class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent"
+             required>
+      {% if form.email.errors %}
+      <p class="text-xs text-red-600 mt-1">{{ form.email.errors.0 }}</p>
+      {% endif %}
+    </div>
+
+    <div>
+      <label for="id_password1" class="block text-sm font-medium text-ink mb-1.5">Contrasena</label>
+      <input type="password" name="password1" id="id_password1"
+             class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent"
+             required>
+      {% if form.password1.errors %}
+      {% for error in form.password1.errors %}
+      <p class="text-xs text-red-600 mt-1">{{ error }}</p>
+      {% endfor %}
+      {% endif %}
+    </div>
+
+    <div>
+      <label for="id_password2" class="block text-sm font-medium text-ink mb-1.5">Confirmar contrasena</label>
+      <input type="password" name="password2" id="id_password2"
+             class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent"
+             required>
+      {% if form.password2.errors %}
+      <p class="text-xs text-red-600 mt-1">{{ form.password2.errors.0 }}</p>
+      {% endif %}
+    </div>
+
+    <button type="submit"
+            class="w-full py-2.5 bg-ink text-white rounded-lg hover:bg-ink/90 transition-colors font-medium text-sm">
+      Crear cuenta
+    </button>
+  </form>
+
+  <p class="text-center text-sm text-muted mt-6">
+    Ya tienes cuenta?
+    <a href="{% url 'accounts:login' %}" class="text-accent-dark hover:text-accent transition-colors">
+      Inicia sesion
+    </a>
+  </p>
+</div>
+{% endblock %}

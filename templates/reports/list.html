@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Reportes — {{ club.name }}{% endblock %}
+
+{% block content %}
+<div class="py-4">
+
+  <a href="{% url 'clubs:detail' club.pk %}" class="text-sm text-muted hover:text-ink transition-colors mb-6 inline-block">
+    &larr; Volver al club
+  </a>
+
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="font-serif text-2xl font-semibold text-ink">Reportes</h1>
+      <p class="text-muted text-sm mt-1">{{ club.name }} &mdash; {{ club.book.title }}</p>
+    </div>
+    {% if club.status == 'DISCUSSION' %}
+    <a href="{% url 'reports:discussion' club.pk %}"
+       class="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent-dark transition-colors text-sm font-medium">
+      Ir al debate
+    </a>
+    {% endif %}
+  </div>
+
+  <!-- Mi reporte (si no lo entregue aun) -->
+  {% if not my_report and club.status != 'CLOSED' %}
+  <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-5 mb-6 flex items-center justify-between">
+    <p class="text-sm text-yellow-800">Aun no has entregado tu reporte.</p>
+    <a href="{% url 'reports:submit' club.pk %}"
+       class="px-4 py-2 bg-ink text-white rounded-lg text-sm font-medium hover:bg-ink/90 transition-colors">
+      Entregar reporte
+    </a>
+  </div>
+  {% endif %}
+
+  <!-- Grid de reportes -->
+  {% if reports %}
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% for report in reports %}
+    <div class="bg-white rounded-xl border border-subtle p-5 hover:border-accent/40 transition-colors">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="w-9 h-9 rounded-full bg-accent/15 flex items-center justify-center text-sm font-medium text-accent-dark shrink-0">
+          {{ report.user.display_name|default:report.user.username|truncatechars:1|upper }}
+        </span>
+        <div>
+          <p class="text-sm font-medium text-ink">{{ report.user.display_name|default:report.user.username }}</p>
+          <p class="text-xs text-muted">{{ report.submitted_at|date:"d M Y" }}{% if report.is_late %} &mdash; tardio{% endif %}</p>
+        </div>
+        {% if report.user == request.user %}
+        <span class="ml-auto text-xs bg-accent/10 text-accent-dark px-2 py-0.5 rounded-full">Tu reporte</span>
+        {% endif %}
+      </div>
+
+      <p class="text-sm text-ink/80 line-clamp-4 leading-relaxed mb-4">
+        {{ report.text|truncatewords:50 }}
+      </p>
+
+      <div class="flex items-center justify-between">
+        <a href="{% url 'reports:detail' report.pk %}"
+           class="text-sm text-accent-dark hover:text-accent font-medium transition-colors">
+          Leer completo &rarr;
+        </a>
+        {% if can_react %}
+        <span class="text-xs text-muted">Reacciona en el detalle</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-center py-16 text-muted">
+    <p class="text-lg mb-2">No hay reportes aun.</p>
+    {% if club.status == 'CLOSED' and not my_report %}
+    <p class="text-sm">No entregaste reporte en este club.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

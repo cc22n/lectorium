@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Crear club — Lectorium{% endblock %}
+
+{% block content %}
+<div class="py-4 max-w-2xl mx-auto">
+  <h1 class="font-serif text-3xl font-semibold mb-2">Crear un club</h1>
+  <p class="text-muted mb-8">Define las reglas y el libro para tu nuevo club de lectura</p>
+
+  {% if not can_create %}
+  <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+    <p class="text-sm text-yellow-800">
+      No puedes crear mas clubes. Limite: maximo 2 clubes creados y 3 clubes activos en total.
+    </p>
+  </div>
+  {% else %}
+
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+
+    <!-- Book search -->
+    <div>
+      <label class="block text-sm font-medium text-ink mb-1.5">Libro</label>
+      <div class="relative">
+        <input type="text" id="book-search" placeholder="Buscar libro por titulo o autor..."
+               class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent"
+               hx-get="{% url 'books:search' %}"
+               hx-trigger="keyup changed delay:400ms"
+               hx-target="#book-results"
+               name="book_query"
+               autocomplete="off">
+        <div id="book-results" class="absolute z-10 w-full mt-1"></div>
+      </div>
+      <input type="hidden" name="book_id" id="book-id" value="{{ form.book_id.value|default:'' }}">
+      <div id="selected-book" class="mt-2 text-sm text-accent-dark {% if not selected_book %}hidden{% endif %}">
+        {% if selected_book %}
+          Seleccionado: <strong>{{ selected_book.title }}</strong> — {{ selected_book.author }}
+        {% endif %}
+      </div>
+      <p class="text-xs text-muted mt-1">
+        Si el libro no aparece, puedes
+        <a href="{% url 'books:manual_create' %}" class="text-accent-dark hover:text-accent">registrarlo manualmente</a>.
+      </p>
+      {% if form.book_id.errors %}
+      <p class="text-xs text-red-600 mt-1">{{ form.book_id.errors.0 }}</p>
+      {% endif %}
+    </div>
+
+    <!-- Club name -->
+    <div>
+      <label for="id_name" class="block text-sm font-medium text-ink mb-1.5">Nombre del club</label>
+      <input type="text" name="name" id="id_name" value="{{ form.name.value|default:'' }}"
+             class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent"
+             placeholder="Ej: Club de Borges - Ficciones" required>
+      {% if form.name.errors %}
+      <p class="text-xs text-red-600 mt-1">{{ form.name.errors.0 }}</p>
+      {% endif %}
+    </div>
+
+    <!-- Description -->
+    <div>
+      <label for="id_description" class="block text-sm font-medium text-ink mb-1.5">Descripcion</label>
+      <textarea name="description" id="id_description" rows="4"
+                class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent resize-y"
+                placeholder="Describe las reglas del club, expectativas, y cualquier detalle relevante para los miembros..."
+                required>{{ form.description.value|default:'' }}</textarea>
+      {% if form.description.errors %}
+      <p class="text-xs text-red-600 mt-1">{{ form.description.errors.0 }}</p>
+      {% endif %}
+    </div>
+
+    <!-- Language & Mode row -->
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label for="id_language" class="block text-sm font-medium text-ink mb-1.5">Idioma</label>
+        <select name="language" id="id_language"
+                class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent">
+          <option value="es" {% if form.language.value == 'es' %}selected{% endif %}>Espanol</option>
+          <option value="en" {% if form.language.value == 'en' %}selected{% endif %}>English</option>
+          <option value="fr" {% if form.language.value == 'fr' %}selected{% endif %}>Francais</option>
+          <option value="pt" {% if form.language.value == 'pt' %}selected{% endif %}>Portugues</option>
+        </select>
+      </div>
+      <div>
+        <label for="id_mode" class="block text-sm font-medium text-ink mb-1.5">Modo</label>
+        <select name="mode" id="id_mode"
+                class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent">
+          <option value="FREE">Libre — Sin requisitos</option>
+          <option value="RELAXED">Relajado — Confirmacion simple</option>
+          <option value="MODERATE">Moderado — Preguntas del creador</option>
+          <option value="STRICT">Estricto — Reporte obligatorio</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Members row -->
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label for="id_min_members" class="block text-sm font-medium text-ink mb-1.5">Minimo de miembros</label>
+        <input type="number" name="min_members" id="id_min_members" min="5" max="25"
+               value="{{ form.min_members.value|default:'5' }}"
+               class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent">
+        <p class="text-xs text-muted mt-1">Minimo 5</p>
+      </div>
+      <div>
+        <label for="id_max_members" class="block text-sm font-medium text-ink mb-1.5">Maximo de miembros</label>
+        <input type="number" name="max_members" id="id_max_members" min="5" max="25"
+               value="{{ form.max_members.value|default:'20' }}"
+               class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent">
+        <p class="text-xs text-muted mt-1">Maximo 25</p>
+      </div>
+    </div>
+
+    <!-- Durations -->
+    <fieldset class="border border-subtle rounded-lg p-4">
+      <legend class="text-sm font-medium text-ink px-2">Duraciones (en dias)</legend>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+        <div>
+          <label for="id_reading_duration_days" class="block text-xs text-muted mb-1">Lectura</label>
+          <input type="number" name="reading_duration_days" id="id_reading_duration_days" min="7"
+                 value="{{ form.reading_duration_days.value|default:'30' }}"
+                 class="w-full border border-subtle rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-accent">
+        </div>
+        <div>
+          <label for="id_submission_duration_days" class="block text-xs text-muted mb-1">Entrega</label>
+          <input type="number" name="submission_duration_days" id="id_submission_duration_days" min="3"
+                 value="{{ form.submission_duration_days.value|default:'7' }}"
+                 class="w-full border border-subtle rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-accent">
+        </div>
+        <div>
+          <label for="id_review_duration_days" class="block text-xs text-muted mb-1">Revision</label>
+          <input type="number" name="review_duration_days" id="id_review_duration_days" min="2"
+                 value="{{ form.review_duration_days.value|default:'3' }}"
+                 class="w-full border border-subtle rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-accent">
+        </div>
+        <div>
+          <label for="id_discussion_duration_days" class="block text-xs text-muted mb-1">Debate</label>
+          <input type="number" name="discussion_duration_days" id="id_discussion_duration_days" min="3"
+                 value="{{ form.discussion_duration_days.value|default:'7' }}"
+                 class="w-full border border-subtle rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:border-accent">
+        </div>
+      </div>
+    </fieldset>
+
+    <!-- Open until -->
+    <div>
+      <label for="id_open_until" class="block text-sm font-medium text-ink mb-1.5">Abierto hasta</label>
+      <input type="date" name="open_until" id="id_open_until"
+             value="{{ form.open_until.value|default:'' }}"
+             class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent"
+             required>
+      <p class="text-xs text-muted mt-1">Fecha limite para que se unan miembros</p>
+      {% if form.open_until.errors %}
+      <p class="text-xs text-red-600 mt-1">{{ form.open_until.errors.0 }}</p>
+      {% endif %}
+    </div>
+
+    <!-- Verification questions (only for MODERATE mode) -->
+    <div id="verification-section" class="hidden">
+      <label class="block text-sm font-medium text-ink mb-1.5">Preguntas de verificacion (modo moderado)</label>
+      <textarea name="verification_questions" id="id_verification_questions" rows="3"
+                class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent resize-y"
+                placeholder="Escribe una pregunta por linea. Ej:&#10;Quien es el protagonista?&#10;En que ciudad ocurre la historia?"></textarea>
+      <p class="text-xs text-muted mt-1">Una pregunta por linea. Los miembros deben responder para participar en el debate.</p>
+    </div>
+
+    <!-- Submit -->
+    <div class="flex items-center gap-4 pt-2">
+      <button type="submit"
+              class="px-6 py-2.5 bg-ink text-white rounded-lg hover:bg-ink/90 transition-colors font-medium">
+        Crear club
+      </button>
+      <a href="{% url 'clubs:home' %}" class="text-sm text-muted hover:text-ink transition-colors">
+        Cancelar
+      </a>
+    </div>
+  </form>
+
+  {% endif %}
+</div>
+
+{% block extra_scripts %}
+<script>
+  // Show/hide verification questions based on mode
+  const modeSelect = document.getElementById('id_mode');
+  const verificationSection = document.getElementById('verification-section');
+
+  function toggleVerification() {
+    if (modeSelect.value === 'MODERATE') {
+      verificationSection.classList.remove('hidden');
+    } else {
+      verificationSection.classList.add('hidden');
+    }
+  }
+
+  modeSelect.addEventListener('change', toggleVerification);
+  toggleVerification();
+</script>
+{% endblock %}
+{% endblock %}

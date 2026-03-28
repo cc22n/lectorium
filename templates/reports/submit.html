@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Entregar reporte — {{ club.name }}{% endblock %}
+
+{% block content %}
+<div class="py-4 max-w-2xl mx-auto">
+
+  <a href="{% url 'clubs:detail' club.pk %}" class="text-sm text-muted hover:text-ink transition-colors mb-6 inline-block">
+    &larr; Volver al club
+  </a>
+
+  <div class="bg-white rounded-xl border border-subtle p-6 md:p-8">
+    <h1 class="font-serif text-2xl font-semibold text-ink mb-1">Entregar reporte</h1>
+    <p class="text-muted text-sm mb-1">{{ club.name }}</p>
+    <p class="text-sm text-ink/70 mb-6">
+      {{ club.book.title }} &mdash; {{ club.book.author }}
+    </p>
+
+    {% if is_late %}
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 text-sm text-yellow-800 mb-6">
+      Estas entregando un reporte tardio. El periodo de SUBMISSION ya cerro, pero aun puedes registrar tu reflexion.
+    </div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-ink mb-2">{{ form.text.label }}</label>
+        {{ form.text }}
+        {% if form.text.errors %}
+        <p class="text-red-600 text-xs mt-1">{{ form.text.errors.0 }}</p>
+        {% endif %}
+        <p class="text-xs text-muted mt-2">
+          Comparte tus reflexiones sobre el libro. No habra forma de editarlo despues de entregarlo.
+        </p>
+      </div>
+      <div class="flex gap-3">
+        <button type="submit"
+                class="px-6 py-2.5 bg-ink text-white rounded-lg hover:bg-ink/90 transition-colors font-medium text-sm">
+          Entregar reporte
+        </button>
+        <a href="{% url 'clubs:detail' club.pk %}"
+           class="px-6 py-2.5 border border-subtle text-muted rounded-lg hover:bg-warm transition-colors text-sm">
+          Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

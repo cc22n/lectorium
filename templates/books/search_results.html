@@ -1,0 +1,82 @@
+{% comment %}
+Partial HTMX: resultados de busqueda de libros.
+Muestra primero resultados locales (BD) y luego resultados de Google Books API.
+{% endcomment %}
+
+{% if local_books or api_books %}
+<div class="bg-white border border-subtle rounded-lg shadow-lg max-h-80 overflow-y-auto">
+
+  {% if local_books %}
+  {% if api_books %}
+  <div class="px-3 py-1.5 bg-warm border-b border-subtle">
+    <span class="text-xs font-medium text-muted uppercase tracking-wide">En la plataforma</span>
+  </div>
+  {% endif %}
+  {% for book in local_books %}
+  <button type="button"
+          class="w-full text-left px-4 py-3 hover:bg-warm transition-colors border-b border-subtle last:border-0 flex items-center gap-3"
+          onclick="selectBook('{{ book.id }}', '{{ book.title|escapejs }}', '{{ book.author|escapejs }}')">
+    {% if book.cover_image_url %}
+    <img src="{{ book.cover_image_url }}" class="w-8 h-12 object-cover rounded shrink-0" alt="">
+    {% else %}
+    <div class="w-8 h-12 bg-warm rounded shrink-0 flex items-center justify-center">
+      <svg class="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+      </svg>
+    </div>
+    {% endif %}
+    <div class="min-w-0">
+      <p class="text-sm font-medium text-ink truncate">{{ book.title }}</p>
+      <p class="text-xs text-muted truncate">{{ book.author }}</p>
+    </div>
+  </button>
+  {% endfor %}
+  {% endif %}
+
+  {% if api_books %}
+  <div class="px-3 py-1.5 bg-warm border-b border-subtle {% if local_books %}border-t{% endif %}">
+    <span class="text-xs font-medium text-muted uppercase tracking-wide">Google Books</span>
+  </div>
+  {% for book in api_books %}
+  <button type="button"
+          class="w-full text-left px-4 py-3 hover:bg-warm transition-colors border-b border-subtle last:border-0 flex items-center gap-3"
+          hx-post="{% url 'books:save_from_google' %}"
+          hx-vals='{"google_books_id": "{{ book.google_books_id|escapejs }}", "title": "{{ book.title|escapejs }}", "author": "{{ book.author|escapejs }}", "isbn": "{{ book.isbn|escapejs }}", "cover_image_url": "{{ book.cover_image_url|escapejs }}"}'
+          hx-swap="none"
+          hx-include="[name=csrfmiddlewaretoken]">
+    {% if book.cover_image_url %}
+    <img src="{{ book.cover_image_url }}" class="w-8 h-12 object-cover rounded shrink-0" alt="">
+    {% else %}
+    <div class="w-8 h-12 bg-warm rounded shrink-0 flex items-center justify-center">
+      <svg class="w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+      </svg>
+    </div>
+    {% endif %}
+    <div class="min-w-0 flex-1">
+      <p class="text-sm font-medium text-ink truncate">{{ book.title }}</p>
+      <p class="text-xs text-muted truncate">{{ book.author }}</p>
+    </div>
+    <span class="shrink-0 text-xs text-muted/60">Google</span>
+  </button>
+  {% endfor %}
+  {% endif %}
+
+</div>
+
+{% elif query %}
+<div class="bg-white border border-subtle rounded-lg shadow-lg p-4 text-sm text-muted">
+  No se encontraron libros para "{{ query }}".
+  <a href="{% url 'books:manual_create' %}" class="text-accent-dark hover:text-accent ml-1">Registrar manualmente &rarr;</a>
+</div>
+{% endif %}
+
+<script>
+function selectBook(id, title, author) {
+  document.getElementById('book-id').value = id;
+  document.getElementById('selected-book').innerHTML = 'Seleccionado: <strong>' + title + '</strong> \u2014 ' + author;
+  document.getElementById('selected-book').classList.remove('hidden');
+  document.getElementById('book-results').innerHTML = '';
+  document.getElementById('book-search').value = title;
+}
+</script>

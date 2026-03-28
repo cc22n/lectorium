@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Explorar clubes — Lectorium{% endblock %}
+
+{% block content %}
+<div class="py-4">
+  <h1 class="font-serif text-3xl font-semibold mb-2">Explorar clubes</h1>
+  <p class="text-muted mb-8">Encuentra tu proximo club de lectura</p>
+
+  <!-- Filters -->
+  <form method="get" class="flex flex-wrap items-center gap-3 mb-8">
+    <select name="language"
+            class="text-sm border border-subtle rounded-lg px-3 py-2 bg-white text-ink focus:outline-none focus:border-accent">
+      <option value="">Todos los idiomas</option>
+      <option value="es" {% if request.GET.language == 'es' %}selected{% endif %}>Espanol</option>
+      <option value="en" {% if request.GET.language == 'en' %}selected{% endif %}>English</option>
+      <option value="fr" {% if request.GET.language == 'fr' %}selected{% endif %}>Francais</option>
+      <option value="pt" {% if request.GET.language == 'pt' %}selected{% endif %}>Portugues</option>
+    </select>
+
+    <select name="mode"
+            class="text-sm border border-subtle rounded-lg px-3 py-2 bg-white text-ink focus:outline-none focus:border-accent">
+      <option value="">Todos los modos</option>
+      <option value="STRICT" {% if request.GET.mode == 'STRICT' %}selected{% endif %}>Estricto</option>
+      <option value="MODERATE" {% if request.GET.mode == 'MODERATE' %}selected{% endif %}>Moderado</option>
+      <option value="RELAXED" {% if request.GET.mode == 'RELAXED' %}selected{% endif %}>Relajado</option>
+      <option value="FREE" {% if request.GET.mode == 'FREE' %}selected{% endif %}>Libre</option>
+    </select>
+
+    <select name="status"
+            class="text-sm border border-subtle rounded-lg px-3 py-2 bg-white text-ink focus:outline-none focus:border-accent">
+      <option value="OPEN" {% if request.GET.status == 'OPEN' or not request.GET.status %}selected{% endif %}>Abiertos</option>
+      <option value="READING" {% if request.GET.status == 'READING' %}selected{% endif %}>En lectura</option>
+      <option value="all" {% if request.GET.status == 'all' %}selected{% endif %}>Todos</option>
+    </select>
+
+    <button type="submit"
+            class="text-sm px-4 py-2 bg-ink text-white rounded-lg hover:bg-ink/90 transition-colors">
+      Filtrar
+    </button>
+
+    {% if request.GET.language or request.GET.mode or request.GET.status and request.GET.status != 'OPEN' %}
+    <a href="{% url 'clubs:explore' %}" class="text-sm text-muted hover:text-ink transition-colors">
+      Limpiar filtros
+    </a>
+    {% endif %}
+  </form>
+
+  <!-- Results -->
+  {% if clubs %}
+  <div class="grid md:grid-cols-2 gap-4">
+    {% for club in clubs %}
+      {% include "includes/club_card.html" with club=club %}
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if is_paginated %}
+  <div class="flex items-center justify-center gap-2 mt-8">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
+       class="px-3 py-1.5 text-sm border border-subtle rounded-lg hover:border-ink/30 transition-colors">
+      Anterior
+    </a>
+    {% endif %}
+
+    <span class="px-3 py-1.5 text-sm text-muted">
+      Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+    </span>
+
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
+       class="px-3 py-1.5 text-sm border border-subtle rounded-lg hover:border-ink/30 transition-colors">
+      Siguiente
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="text-center py-16">
+    <p class="text-muted text-lg">No se encontraron clubes con esos filtros.</p>
+    <a href="{% url 'clubs:explore' %}" class="text-sm text-accent-dark hover:text-accent mt-2 inline-block">
+      Ver todos los clubes
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

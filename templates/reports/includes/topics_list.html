@@ -1,0 +1,27 @@
+{% comment %}
+Lista de temas propuestos para el debate.
+Variables: topics, club
+{% endcomment %}
+<div id="topics-list" class="space-y-2">
+  {% for topic in topics %}
+  <div class="flex gap-3 p-3 bg-warm rounded-lg htmx-added">
+    <span class="w-6 h-6 rounded-full bg-accent/15 flex items-center justify-center text-xs font-medium text-accent-dark shrink-0 mt-0.5">
+      {{ topic.user.display_name|default:topic.user.username|truncatechars:1|upper }}
+    </span>
+    <div class="flex-1">
+      <p class="text-sm text-ink">{{ topic.text }}</p>
+      <div class="flex items-center gap-3 mt-0.5">
+        <p class="text-xs text-muted">{{ topic.user.display_name|default:topic.user.username }}</p>
+        {% if topic.user != request.user %}
+        <a href="{% url 'reports:flag' club.pk %}?type=DISCUSSION_TOPIC&id={{ topic.pk }}"
+           class="text-xs text-muted hover:text-red-500 transition-colors">
+          Reportar
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <p class="text-sm text-muted text-center py-4">No hay temas propuestos aun.</p>
+  {% endfor %}
+</div>

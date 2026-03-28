@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Lectorium — Clubes de Lectura{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<section class="text-center py-12 md:py-16">
+  <h1 class="font-serif text-4xl md:text-5xl font-semibold text-ink leading-tight">
+    Lee. Reflexiona. Debate.
+  </h1>
+  <p class="mt-4 text-lg text-muted max-w-xl mx-auto leading-relaxed">
+    Unete a clubes de lectura con estructura: lee un libro con un grupo,
+    escribe tu reflexion, descubre las de otros y debate ideas.
+  </p>
+  {% if not user.is_authenticated %}
+  <div class="mt-8 flex items-center justify-center gap-4">
+    <a href="{% url 'accounts:register' %}"
+       class="px-6 py-2.5 bg-ink text-white rounded-lg hover:bg-ink/90 transition-colors font-medium">
+      Crear cuenta
+    </a>
+    <a href="{% url 'clubs:explore' %}"
+       class="px-6 py-2.5 text-ink border border-subtle rounded-lg hover:border-ink/30 transition-colors">
+      Explorar clubes
+    </a>
+  </div>
+  {% else %}
+  <div class="mt-8 flex items-center justify-center gap-4">
+    <a href="{% url 'clubs:create' %}"
+       class="px-6 py-2.5 bg-ink text-white rounded-lg hover:bg-ink/90 transition-colors font-medium">
+      Crear un club
+    </a>
+    <a href="{% url 'clubs:explore' %}"
+       class="px-6 py-2.5 text-ink border border-subtle rounded-lg hover:border-ink/30 transition-colors">
+      Explorar clubes
+    </a>
+  </div>
+  {% endif %}
+</section>
+
+<!-- Divider -->
+<hr class="border-subtle">
+
+<!-- How it works -->
+<section class="py-12">
+  <h2 class="font-serif text-2xl font-semibold text-center mb-8">Como funciona</h2>
+  <div class="grid md:grid-cols-3 gap-6">
+    <div class="text-center px-4">
+      <div class="w-10 h-10 rounded-full bg-accent/15 flex items-center justify-center mx-auto mb-3">
+        <span class="text-accent-dark font-serif font-semibold">1</span>
+      </div>
+      <h3 class="font-serif font-medium mb-1">Unete a un club</h3>
+      <p class="text-sm text-muted">Explora clubes abiertos y unete al que te interese. Cada club tiene un libro, un idioma y una duracion definida.</p>
+    </div>
+    <div class="text-center px-4">
+      <div class="w-10 h-10 rounded-full bg-accent/15 flex items-center justify-center mx-auto mb-3">
+        <span class="text-accent-dark font-serif font-semibold">2</span>
+      </div>
+      <h3 class="font-serif font-medium mb-1">Lee y reflexiona</h3>
+      <p class="text-sm text-muted">Lee el libro en el periodo asignado, escribe tu reflexion y descubre las de otros miembros.</p>
+    </div>
+    <div class="text-center px-4">
+      <div class="w-10 h-10 rounded-full bg-accent/15 flex items-center justify-center mx-auto mb-3">
+        <span class="text-accent-dark font-serif font-semibold">3</span>
+      </div>
+      <h3 class="font-serif font-medium mb-1">Debate ideas</h3>
+      <p class="text-sm text-muted">Discute interpretaciones, comparte perspectivas y forma comunidad con otros lectores.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Open clubs -->
+{% if open_clubs %}
+<section class="py-8">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="font-serif text-2xl font-semibold">Clubes abiertos</h2>
+    <a href="{% url 'clubs:explore' %}" class="text-sm text-accent-dark hover:text-accent transition-colors">
+      Ver todos &rarr;
+    </a>
+  </div>
+  <div class="grid md:grid-cols-2 gap-4">
+    {% for club in open_clubs %}
+      {% include "includes/club_card.html" with club=club %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<!-- Active clubs (if logged in) -->
+{% if user.is_authenticated and my_clubs %}
+<section class="py-8">
+  <h2 class="font-serif text-2xl font-semibold mb-6">Mis clubes activos</h2>
+  <div class="grid md:grid-cols-2 gap-4">
+    {% for membership in my_clubs %}
+      {% include "includes/club_card.html" with club=membership.club %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}

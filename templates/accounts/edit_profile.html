@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Editar perfil — Lectorium{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto py-8">
+  <h1 class="font-serif text-2xl font-semibold mb-6">Editar perfil</h1>
+
+  <form method="post" class="space-y-4">
+    {% csrf_token %}
+
+    <div>
+      <label for="id_display_name" class="block text-sm font-medium text-ink mb-1.5">Nombre publico</label>
+      <input type="text" name="display_name" id="id_display_name"
+             value="{{ form.display_name.value|default:'' }}"
+             class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent">
+    </div>
+
+    <div>
+      <label for="id_bio" class="block text-sm font-medium text-ink mb-1.5">Biografia</label>
+      <textarea name="bio" id="id_bio" rows="3"
+                class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent resize-y"
+                placeholder="Cuentanos sobre ti...">{{ form.bio.value|default:'' }}</textarea>
+    </div>
+
+    <div>
+      <label for="id_email" class="block text-sm font-medium text-ink mb-1.5">Email</label>
+      <input type="email" name="email" id="id_email"
+             value="{{ form.email.value|default:'' }}"
+             class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent">
+      {% if form.email.errors %}
+      <p class="text-xs text-red-600 mt-1">{{ form.email.errors.0 }}</p>
+      {% endif %}
+    </div>
+
+    <div class="flex items-center gap-4 pt-2">
+      <button type="submit"
+              class="px-6 py-2.5 bg-ink text-white rounded-lg hover:bg-ink/90 transition-colors font-medium text-sm">
+        Guardar cambios
+      </button>
+      <a href="{% url 'accounts:profile' %}" class="text-sm text-muted hover:text-ink transition-colors">
+        Cancelar
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

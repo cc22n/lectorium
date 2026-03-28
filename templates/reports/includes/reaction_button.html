@@ -1,0 +1,15 @@
+{% comment %}
+Partial para un boton de reaccion individual (respuesta HTMX de toggle_reaction_view).
+Variables: report, reaction_type, reaction_label, count, active
+{% endcomment %}
+<button
+  hx-post="{% url 'reports:react' report.pk %}"
+  hx-vals='{"type": "{{ reaction_type }}"}'
+  hx-target="this"
+  hx-swap="outerHTML"
+  class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors
+    {% if active %}bg-accent/20 text-accent-dark border border-accent/30
+    {% else %}bg-warm text-muted border border-subtle hover:bg-accent/10{% endif %}">
+  {{ reaction_label }}
+  {% if count > 0 %}<span class="font-semibold">{{ count }}</span>{% endif %}
+</button>

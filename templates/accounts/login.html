@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Iniciar sesion — Lectorium{% endblock %}
+
+{% block content %}
+<div class="max-w-sm mx-auto py-12">
+  <div class="text-center mb-8">
+    <h1 class="font-serif text-2xl font-semibold">Bienvenido de vuelta</h1>
+    <p class="text-sm text-muted mt-1">Inicia sesion en tu cuenta</p>
+  </div>
+
+  <form method="post" class="space-y-4">
+    {% csrf_token %}
+
+    {% if form.errors %}
+    <div class="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+      Usuario o contrasena incorrectos.
+    </div>
+    {% endif %}
+
+    <div>
+      <label for="id_username" class="block text-sm font-medium text-ink mb-1.5">Usuario</label>
+      <input type="text" name="username" id="id_username" autofocus
+             value="{{ form.username.value|default:'' }}"
+             class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent"
+             required>
+    </div>
+
+    <div>
+      <label for="id_password" class="block text-sm font-medium text-ink mb-1.5">Contrasena</label>
+      <input type="password" name="password" id="id_password"
+             class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent"
+             required>
+    </div>
+
+    <button type="submit"
+            class="w-full py-2.5 bg-ink text-white rounded-lg hover:bg-ink/90 transition-colors font-medium text-sm">
+      Iniciar sesion
+    </button>
+  </form>
+
+  <p class="text-center text-sm text-muted mt-6">
+    No tienes cuenta?
+    <a href="{% url 'accounts:register' %}" class="text-accent-dark hover:text-accent transition-colors">
+      Registrate
+    </a>
+  </p>
+</div>
+{% endblock %}

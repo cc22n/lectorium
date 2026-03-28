@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar libro — Lectorium{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto py-8">
+  <a href="javascript:history.back()" class="text-sm text-muted hover:text-ink transition-colors mb-6 inline-block">
+    &larr; Volver
+  </a>
+
+  <h1 class="font-serif text-2xl font-semibold mb-2">Registrar libro manualmente</h1>
+  <p class="text-sm text-muted mb-6">Si el libro no aparece en la busqueda, puedes registrarlo aqui.</p>
+
+  <form method="post" class="space-y-4">
+    {% csrf_token %}
+
+    <div>
+      <label for="id_title" class="block text-sm font-medium text-ink mb-1.5">Titulo</label>
+      <input type="text" name="title" id="id_title"
+             value="{{ form.title.value|default:'' }}"
+             class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent"
+             required>
+      {% if form.title.errors %}
+      <p class="text-xs text-red-600 mt-1">{{ form.title.errors.0 }}</p>
+      {% endif %}
+    </div>
+
+    <div>
+      <label for="id_author" class="block text-sm font-medium text-ink mb-1.5">Autor</label>
+      <input type="text" name="author" id="id_author"
+             value="{{ form.author.value|default:'' }}"
+             class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent"
+             required>
+    </div>
+
+    <div>
+      <label for="id_isbn" class="block text-sm font-medium text-ink mb-1.5">ISBN (opcional)</label>
+      <input type="text" name="isbn" id="id_isbn"
+             value="{{ form.isbn.value|default:'' }}"
+             class="w-full border border-subtle rounded-lg px-4 py-2.5 text-sm bg-white focus:outline-none focus:border-accent">
+    </div>
+
+    <div class="flex items-center gap-4 pt-2">
+      <button type="submit"
+              class="px-6 py-2.5 bg-ink text-white rounded-lg hover:bg-ink/90 transition-colors font-medium text-sm">
+        Registrar libro
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

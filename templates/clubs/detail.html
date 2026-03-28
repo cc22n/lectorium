@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}{{ club.name }} — Lectorium{% endblock %}
+
+{% block content %}
+<div class="py-4">
+
+  <!-- Back link -->
+  <a href="{% url 'clubs:explore' %}" class="text-sm text-muted hover:text-ink transition-colors mb-6 inline-block">
+    &larr; Volver a explorar
+  </a>
+
+  <!-- Club header -->
+  <div class="bg-white rounded-xl border border-subtle p-6 md:p-8 mb-6">
+    <div class="flex flex-col md:flex-row md:items-start gap-6">
+
+      <!-- Book cover -->
+      {% if club.book.cover_image_url %}
+      <div class="shrink-0">
+        <img src="{{ club.book.cover_image_url }}" alt="{{ club.book.title }}"
+             class="w-24 h-36 object-cover rounded-lg shadow-sm">
+      </div>
+      {% endif %}
+
+      <!-- Club info -->
+      <div class="flex-1">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h1 class="font-serif text-2xl md:text-3xl font-semibold text-ink">{{ club.name }}</h1>
+            <p class="text-muted mt-1">
+              {{ club.book.title }} &mdash; {{ club.book.author }}
+            </p>
+          </div>
+          <span class="shrink-0 text-sm font-medium px-3 py-1 rounded-full
+            {% if club.status == 'OPEN' %}bg-green-50 text-green-700
+            {% elif club.status == 'READING' %}bg-blue-50 text-blue-700
+            {% elif club.status == 'SUBMISSION' %}bg-yellow-50 text-yellow-700
+            {% elif club.status == 'REVIEW' %}bg-purple-50 text-purple-700
+            {% elif club.status == 'DISCUSSION' %}bg-orange-50 text-orange-700
+            {% elif club.status == 'CLOSED' %}bg-gray-100 text-gray-500
+            {% else %}bg-red-50 text-red-600{% endif %}">
+            {{ club.get_status_display }}
+          </span>
+        </div>
+
+        <!-- Meta -->
+        <div class="flex flex-wrap items-center gap-4 mt-4 text-sm text-muted">
+          <span>{{ club.active_members_count }}/{{ club.max_members }} miembros</span>
+          <span>{{ club.language|upper }}</span>
+          <span>{{ club.get_mode_display }}</span>
+          <span>Creado por {{ club.creator.display_name|default:club.creator.username }}</span>
+        </div>
+
+        <!-- Description -->
+        {% if club.description %}
+        <div class="mt-4 text-sm text-ink/80 leading-relaxed whitespace-pre-line">
+          {{ club.description }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase timeline -->
+  <div class="bg-white rounded-xl border border-subtle p-6 mb-6">
+    <h2 class="font-serif text-lg font-semibold mb-4">Calendario del club</h2>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+      {% with phases="READING,SUBMISSION,REVIEW,DISCUSSION,CLOSED" %}
+      {% for phase_name in phases|cut:" " %}
+        {% with phase=phase_name|cut:"," %}
+        <div class="text-center p-3 rounded-lg text-xs
+          {% if club.status == phase %}bg-accent/10 border border-accent/30
+          {% else %}bg-warm{% endif %}">
+          <div class="font-medium {% if club.status == phase %}text-accent-dark{% else %}text-muted{% endif %}">
+            {% if phase == 'READING' %}Lectura
+            {% elif phase == 'SUBMISSION' %}Entrega
+            {% elif phase == 'REVIEW' %}Revision
+            {% elif phase == 'DISCUSSION' %}Debate
+            {% elif phase == 'CLOSED' %}Cierre
+            {% endif %}
+          </div>
+          <div class="text-muted mt-1">
+            {% if phase == 'READING' %}{{ club.reading_duration_days }} dias
+            {% elif phase == 'SUBMISSION' %}{{ club.submission_duration_days }} dias
+            {% elif phase == 'REVIEW' %}{{ club.review_duration_days }} dias
+            {% elif phase == 'DISCUSSION' %}{{ club.discussion_duration_days }} dias
+            {% endif %}
+          </div>
+        </div>
+        {% endwith %}
+      {% endfor %}
+      {% endwith %}
+    </div>
+  </div>
+
+  <!-- Actions based on status -->
+  <div class="bg-white rounded-xl border border-subtle p-6 mb-6">
+
+    {% if club.status == 'OPEN' %}
+      {% if is_member %}
+        <div class="text-center">
+          <p class="text-muted mb-3">Ya eres miembro de este club.</p>
+          {% if membership.role != 'CREATOR' %}
+          <form method="post" action="{% url 'clubs:leave' club.pk %}">
+            {% csrf_token %}
+            <button type="submit"
+                    class="text-sm px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                    onclick="return confirm('Estas seguro de que quieres abandonar este club?')">
+              Abandonar club
+            </button>
+          </form>
+          {% else %}
+            {# Boton force-start: solo si open_until paso y hay 5+ pero < min_members #}
+            {% if club.has_reached_platform_minimum and not club.has_reached_minimum %}
+            <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+              <p class="mb-3">El periodo de inscripcion ha vencido con {{ club.active_members_count }} miembros (minimo configurado: {{ club.min_members }}). Puedes iniciar el club con los miembros actuales.</p>
+              <form method="post" action="{% url 'clubs:force_start' club.pk %}">
+                {% csrf_token %}
+                <button type="submit"
+                        class="px-4 py-2 bg-ink text-white rounded-lg text-sm hover:bg-ink/90 transition-colors"
+                        onclick="return confirm('Iniciar el club con {{ club.active_members_count }} miembros?')">
+                  Iniciar club de todas formas
+                </button>
+              </form>
+            </div>
+            {% endif %}
+          {% endif %}
+        </div>
+      {% elif can_join %}
+        <div class="text-center">
+          <p class="text-muted mb-3">Este club esta abierto. Unete para participar.</p>
+          <form method="post" action="{% url 'clubs:join' club.pk %}">
+            {% csrf_token %}
+            <button type="submit"
+                    class="px-6 py-2.5 bg-ink text-white rounded-lg hover:bg-ink/90 transition-colors font-medium">
+              Unirme al club
+            </button>
+          </form>
+        </div>
+      {% else %}
+        <div class="text-center">
+          <p class="text-muted">
+            {% if not user.is_authenticated %}
+              <a href="{% url 'accounts:login' %}" class="text-accent-dark hover:text-accent">Inicia sesion</a> para unirte a este club.
+            {% elif club.is_full %}
+              Este club ya esta lleno.
+            {% else %}
+              Ya alcanzaste el limite de clubes activos (maximo 3).
+            {% endif %}
+          </p>
+        </div>
+      {% endif %}
+
+    {% elif club.status == 'READING' %}
+      <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 class="font-serif text-lg font-semibold text-ink mb-1">Fase de lectura en curso</h2>
+          <p class="text-sm text-muted">
+            La entrega de reportes abre el
+            {% if club.submission_starts_at %}{{ club.submission_starts_at|date:"d \d\e F Y" }}{% else %}proximamente{% endif %}.
+          </p>
+        </div>
+        {% if is_member %}
+        <span class="text-sm text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg">
+          Eres miembro de este club
+        </span>
+        {% endif %}
+      </div>
+
+    {% elif club.status == 'SUBMISSION' %}
+      <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 class="font-serif text-lg font-semibold text-ink mb-1">Fase de entrega de reportes</h2>
+          <p class="text-sm text-muted">
+            Entrega tu reflexion antes del
+            {% if club.review_starts_at %}{{ club.review_starts_at|date:"d \d\e F Y" }}{% endif %}.
+          </p>
+        </div>
+        {% if is_member %}
+          {% if my_report %}
+          <span class="text-sm text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg">
+            Reporte entregado
+          </span>
+          {% else %}
+          <a href="{% url 'reports:submit' club.pk %}"
+             class="px-5 py-2.5 bg-ink text-white rounded-lg text-sm font-medium hover:bg-ink/90 transition-colors">
+            Entregar reporte
+          </a>
+          {% endif %}
+        {% endif %}
+      </div>
+
+    {% elif club.status == 'REVIEW' %}
+      <div class="space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h2 class="font-serif text-lg font-semibold text-ink mb-1">Fase de revision</h2>
+            <p class="text-sm text-muted">
+              Los reportes estan disponibles. Puedes reaccionar y proponer temas de debate.
+            </p>
+          </div>
+          {% if is_member %}
+          <div class="flex gap-2">
+            <a href="{% url 'reports:list' club.pk %}"
+               class="px-5 py-2.5 bg-ink text-white rounded-lg text-sm font-medium hover:bg-ink/90 transition-colors">
+              Ver reportes
+            </a>
+            {% if membership.role == 'CREATOR' %}
+            <a href="{% url 'reports:moderation' club.pk %}"
+               class="px-4 py-2 border border-subtle text-muted rounded-lg text-sm hover:bg-warm transition-colors">
+              Moderacion
+            </a>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+
+        {# Verificacion anticipada para modos MODERATE y RELAXED #}
+        {% if is_member and club.mode == 'MODERATE' %}
+          {% if membership.role == 'CREATOR' %}
+            {% if pending_verifications_count > 0 %}
+            <div class="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p class="text-sm text-yellow-800">
+                {{ pending_verifications_count }} respuesta{{ pending_verifications_count|pluralize }} pendiente{{ pending_verifications_count|pluralize }} de aprobacion.
+              </p>
+              <a href="{% url 'reports:verification_review' club.pk %}"
+                 class="px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm hover:bg-yellow-700 transition-colors">
+                Revisar respuestas
+              </a>
+            </div>
+            {% else %}
+            <div class="flex items-center justify-between p-4 bg-warm border border-subtle rounded-lg">
+              <p class="text-sm text-muted">No hay respuestas pendientes de verificacion.</p>
+              <a href="{% url 'reports:verification_review' club.pk %}"
+                 class="px-4 py-2 border border-subtle text-ink rounded-lg text-sm hover:bg-white transition-colors">
+                Ver verificaciones
+              </a>
+            </div>
+            {% endif %}
+          {% else %}
+            {% if user_verified %}
+            <div class="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+              Respuestas de verificacion aprobadas. Podras acceder al debate cuando abra.
+            </div>
+            {% elif user_verification %}
+            <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+              Tus respuestas estan siendo revisadas por el creador.
+            </div>
+            {% else %}
+            <div class="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p class="text-sm text-blue-800">Responde las preguntas del creador para estar listo cuando abra el debate.</p>
+              <a href="{% url 'reports:verify' club.pk %}"
+                 class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors">
+                Responder preguntas
+              </a>
+            </div>
+            {% endif %}
+          {% endif %}
+        {% elif is_member and club.mode == 'RELAXED' %}
+          {% if user_verified %}
+          <div class="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+            Lectura confirmada. Podras acceder al debate cuando abra.
+          </div>
+          {% else %}
+          <div class="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p class="text-sm text-blue-800">Confirma que terminaste el libro para estar listo cuando abra el debate.</p>
+            <a href="{% url 'reports:verify' club.pk %}"
+               class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors">
+              Confirmar lectura
+            </a>
+          </div>
+          {% endif %}
+        {% endif %}
+      </div>
+
+    {% elif club.status == 'DISCUSSION' %}
+      <div class="space-y-4">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h2 class="font-serif text-lg font-semibold text-ink mb-1">Fase de debate</h2>
+            <p class="text-sm text-muted">El debate esta activo. Comenta los reportes y participa en la discusion en vivo.</p>
+          </div>
+          {% if is_member %}
+          <div class="flex flex-wrap gap-2">
+            <a href="{% url 'reports:list' club.pk %}"
+               class="px-4 py-2 border border-subtle text-ink rounded-lg text-sm hover:bg-warm transition-colors">
+              Ver reportes
+            </a>
+            {% if user_verified %}
+            <a href="{% url 'reports:discussion' club.pk %}"
+               class="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-dark transition-colors">
+              Ir al debate
+            </a>
+            {% endif %}
+            {% if membership.role == 'CREATOR' %}
+              {% if club.mode == 'MODERATE' and pending_verifications_count > 0 %}
+              <a href="{% url 'reports:verification_review' club.pk %}"
+                 class="px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm hover:bg-yellow-600 transition-colors">
+                Verificaciones ({{ pending_verifications_count }})
+              </a>
+              {% endif %}
+              <form method="post" action="{% url 'clubs:close_discussion' club.pk %}">
+                {% csrf_token %}
+                <button type="submit"
+                        onclick="return confirm('Cerrar el debate?')"
+                        class="px-4 py-2 border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-50 transition-colors">
+                  Cerrar debate
+                </button>
+              </form>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+
+        {# Estado de verificacion del miembro #}
+        {% if is_member and membership.role != 'CREATOR' %}
+          {% if club.mode == 'STRICT' and not user_verified %}
+          <div class="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p class="text-sm text-yellow-800">Necesitas entregar tu reporte para acceder al debate.</p>
+            <a href="{% url 'reports:submit' club.pk %}"
+               class="px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm hover:bg-yellow-700 transition-colors">
+              Entregar reporte
+            </a>
+          </div>
+          {% elif club.mode == 'MODERATE' and not user_verified %}
+            {% if user_verification %}
+            <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+              Tus respuestas estan siendo revisadas. El creador las aprobara pronto.
+            </div>
+            {% else %}
+            <div class="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p class="text-sm text-yellow-800">Responde las preguntas del creador para acceder al debate.</p>
+              <a href="{% url 'reports:verify' club.pk %}"
+                 class="px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm hover:bg-yellow-700 transition-colors">
+                Responder preguntas
+              </a>
+            </div>
+            {% endif %}
+          {% elif club.mode == 'RELAXED' and not user_verified %}
+          <div class="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p class="text-sm text-yellow-800">Confirma que terminaste el libro para acceder al debate.</p>
+            <a href="{% url 'reports:verify' club.pk %}"
+               class="px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm hover:bg-yellow-700 transition-colors">
+              Confirmar lectura
+            </a>
+          </div>
+          {% elif user_verified %}
+          <div class="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+            Verificacion completa. Puedes participar en el debate.
+          </div>
+          {% endif %}
+        {% endif %}
+      </div>
+
+    {% elif club.status == 'CLOSED' %}
+      <div class="text-center py-4">
+        <h2 class="font-serif text-xl font-semibold text-ink mb-2">Club cerrado</h2>
+        <p class="text-sm text-muted mb-4">
+          Este club ha concluido. Solo puedes ver tu propio reporte.
+        </p>
+        {% if is_member %}
+        <a href="{% url 'reports:list' club.pk %}"
+           class="px-5 py-2.5 border border-subtle text-ink rounded-lg text-sm hover:bg-warm transition-colors">
+          Ver mi reporte
+        </a>
+        {% endif %}
+      </div>
+
+    {% elif club.status == 'CANCELLED' %}
+      <div class="text-center py-4">
+        <h2 class="font-serif text-xl font-semibold text-red-600 mb-2">Club cancelado</h2>
+        <p class="text-sm text-muted">
+          Este club fue cancelado. No fue posible completar el ciclo de lectura.
+        </p>
+      </div>
+    {% endif %}
+
+  </div>
+
+  <!-- Members list -->
+  <div class="bg-white rounded-xl border border-subtle p-6 mt-6">
+    <h2 class="font-serif text-lg font-semibold mb-4">Miembros ({{ club.active_members_count }})</h2>
+    <div class="space-y-2">
+      {% for m in members %}
+      <div class="flex items-center gap-3 py-2">
+        <span class="w-8 h-8 rounded-full bg-accent/15 flex items-center justify-center text-xs font-medium text-accent-dark">
+          {{ m.user.display_name|default:m.user.username|truncatechars:1|upper }}
+        </span>
+        <span class="text-sm">{{ m.user.display_name|default:m.user.username }}</span>
+        {% if m.role == 'CREATOR' %}
+        <span class="text-xs bg-accent/10 text-accent-dark px-2 py-0.5 rounded-full">Creador</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

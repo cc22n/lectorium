@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Debate — {{ club.name }}{% endblock %}
+
+{% block main_class %}max-w-5xl mx-auto px-6 py-8{% endblock %}
+
+{% block content %}
+<div class="py-4">
+
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <a href="{% url 'reports:list' club.pk %}" class="text-sm text-muted hover:text-ink transition-colors inline-block mb-2">
+        &larr; Ver reportes
+      </a>
+      <h1 class="font-serif text-2xl font-semibold text-ink">Debate en vivo</h1>
+      <p class="text-muted text-sm mt-1">{{ club.name }} &mdash; {{ club.book.title }}</p>
+    </div>
+    {% if is_creator %}
+    <form method="post" action="{% url 'clubs:close_discussion' club.pk %}">
+      {% csrf_token %}
+      <button type="submit"
+              onclick="return confirm('Cerrar el debate? Esta accion no se puede deshacer.')"
+              class="px-4 py-2 border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-50 transition-colors">
+        Cerrar debate
+      </button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <!-- Chat (2/3) -->
+    <div class="md:col-span-2">
+      <div class="bg-white rounded-xl border border-subtle flex flex-col h-[600px]">
+        <div class="p-4 border-b border-subtle flex items-center gap-2">
+          <span class="w-2 h-2 bg-green-400 rounded-full"></span>
+          <span class="text-sm font-medium text-ink">Chat en tiempo real</span>
+          <span id="connection-status" class="text-xs text-muted ml-auto">Conectando...</span>
+        </div>
+
+        <!-- Mensajes -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3">
+          <p class="text-center text-xs text-muted">Los mensajes no se conservan despues del cierre del club.</p>
+        </div>
+
+        <!-- Input -->
+        <div class="p-4 border-t border-subtle">
+          <div class="flex gap-2">
+            <input
+              id="chat-input"
+              type="text"
+              maxlength="1000"
+              placeholder="Escribe un mensaje..."
+              class="flex-1 border border-subtle rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30"
+              autocomplete="off">
+            <button
+              id="chat-send"
+              class="px-4 py-2 bg-ink text-white rounded-lg text-sm hover:bg-ink/90 transition-colors">
+              Enviar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Temas propuestos (1/3) -->
+    <div>
+      <div class="bg-white rounded-xl border border-subtle p-5 h-fit">
+        <h2 class="font-serif text-base font-semibold mb-3">Agenda de temas</h2>
+        {% if topics %}
+        <div class="space-y-2">
+          {% for topic in topics %}
+          <div class="p-3 bg-warm rounded-lg">
+            <p class="text-sm text-ink">{{ topic.text }}</p>
+            <p class="text-xs text-muted mt-0.5">{{ topic.user.display_name|default:topic.user.username }}</p>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-sm text-muted text-center py-4">No hay temas propuestos.</p>
+        {% endif %}
+      </div>
+
+      <div class="mt-4 bg-white rounded-xl border border-subtle p-5">
+        <h2 class="font-serif text-base font-semibold mb-2">Reportes del club</h2>
+        <a href="{% url 'reports:list' club.pk %}"
+           class="text-sm text-accent-dark hover:text-accent transition-colors">
+          Ver todos los reportes &rarr;
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+  const clubPk = "{{ club.pk }}";
+  const currentUser = "{{ request.user.display_name|default:request.user.username }}";
+  const currentUserPk = {{ request.user.pk }};
+
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const wsUrl = `${protocol}://${window.location.host}/ws/clubs/${clubPk}/discussion/`;
+
+  let socket = null;
+  const messagesEl = document.getElementById("chat-messages");
+  const inputEl = document.getElementById("chat-input");
+  const sendBtn = document.getElementById("chat-send");
+  const statusEl = document.getElementById("connection-status");
+
+  function appendMessage(username, text, isSelf) {
+    const div = document.createElement("div");
+    div.className = isSelf
+      ? "flex justify-end"
+      : "flex justify-start";
+
+    div.innerHTML = `
+      <div class="max-w-[80%] ${isSelf ? "items-end" : "items-start"} flex flex-col gap-0.5">
+        ${!isSelf ? `<span class="text-xs text-muted px-1">${escapeHtml(username)}</span>` : ""}
+        <div class="px-3 py-2 rounded-xl text-sm leading-relaxed
+          ${isSelf ? "bg-ink text-white rounded-tr-sm" : "bg-warm text-ink rounded-tl-sm"}">
+          ${escapeHtml(text)}
+        </div>
+      </div>
+    `;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function appendSystem(text) {
+    const p = document.createElement("p");
+    p.className = "text-center text-xs text-muted py-1";
+    p.textContent = text;
+    messagesEl.appendChild(p);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function connect() {
+    socket = new WebSocket(wsUrl);
+
+    socket.onopen = function() {
+      statusEl.textContent = "Conectado";
+      statusEl.className = "text-xs text-green-600 ml-auto";
+    };
+
+    socket.onclose = function() {
+      statusEl.textContent = "Desconectado";
+      statusEl.className = "text-xs text-red-500 ml-auto";
+    };
+
+    socket.onerror = function() {
+      statusEl.textContent = "Error de conexion";
+      statusEl.className = "text-xs text-red-500 ml-auto";
+    };
+
+    socket.onmessage = function(e) {
+      const data = JSON.parse(e.data);
+
+      if (data.type === "message") {
+        appendMessage(data.username, data.text, data.user_pk === currentUserPk);
+      } else if (data.type === "user_joined") {
+        appendSystem(data.username + " se unio al debate.");
+      } else if (data.type === "discussion_closed") {
+        appendSystem("El debate ha sido cerrado por el creador.");
+        statusEl.textContent = "Debate cerrado";
+        statusEl.className = "text-xs text-muted ml-auto";
+        inputEl.disabled = true;
+        sendBtn.disabled = true;
+        setTimeout(function() {
+          window.location.href = "{% url 'clubs:detail' club.pk %}";
+        }, 2000);
+      }
+    };
+  }
+
+  function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text || !socket || socket.readyState !== WebSocket.OPEN) return;
+    socket.send(JSON.stringify({action: "message", text: text}));
+    inputEl.value = "";
+  }
+
+  sendBtn.addEventListener("click", sendMessage);
+  inputEl.addEventListener("keydown", function(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  connect();
+})();
+</script>
+{% endblock %}

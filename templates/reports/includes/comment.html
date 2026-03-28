@@ -1,0 +1,24 @@
+{% comment %}
+Partial para un comentario individual (respuesta HTMX de add_comment_view).
+Variables: comment, club (opcional, para el boton de flag)
+{% endcomment %}
+<div class="flex gap-3 py-3 border-b border-subtle last:border-0 htmx-added">
+  <span class="w-7 h-7 rounded-full bg-accent/15 flex items-center justify-center text-xs font-medium text-accent-dark shrink-0 mt-0.5">
+    {{ comment.user.display_name|default:comment.user.username|truncatechars:1|upper }}
+  </span>
+  <div class="flex-1">
+    <div class="flex items-baseline gap-2 mb-1">
+      <span class="text-sm font-medium text-ink">{{ comment.user.display_name|default:comment.user.username }}</span>
+      <span class="text-xs text-muted">{{ comment.created_at|date:"d M Y H:i" }}</span>
+      {% with club_pk=club.pk|default:comment.report.club_id %}
+      {% if comment.user != request.user %}
+      <a href="{% url 'reports:flag' club_pk %}?type=COMMENT&id={{ comment.pk }}"
+         class="ml-auto text-xs text-muted hover:text-red-500 transition-colors">
+        Reportar
+      </a>
+      {% endif %}
+      {% endwith %}
+    </div>
+    <p class="text-sm text-ink/80 leading-relaxed">{{ comment.text }}</p>
+  </div>
+</div>

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% load report_extras %}
+
+{% block title %}Reporte de {{ report.user.display_name|default:report.user.username }} — {{ club.name }}{% endblock %}
+
+{% block content %}
+<div class="py-4 max-w-3xl mx-auto">
+
+  <a href="{% url 'reports:list' club.pk %}" class="text-sm text-muted hover:text-ink transition-colors mb-6 inline-block">
+    &larr; Volver a reportes
+  </a>
+
+  <!-- Report header -->
+  <div class="bg-white rounded-xl border border-subtle p-6 md:p-8 mb-6">
+    <div class="flex items-center gap-3 mb-4">
+      <span class="w-10 h-10 rounded-full bg-accent/15 flex items-center justify-center text-sm font-medium text-accent-dark shrink-0">
+        {{ report.user.display_name|default:report.user.username|truncatechars:1|upper }}
+      </span>
+      <div>
+        <p class="font-medium text-ink">{{ report.user.display_name|default:report.user.username }}</p>
+        <p class="text-xs text-muted">
+          {{ report.submitted_at|date:"d \d\e F Y" }}
+          {% if report.is_late %}&mdash; entrega tardía{% endif %}
+        </p>
+      </div>
+      <div class="ml-auto flex items-center gap-2">
+        {% if is_own_report %}
+        <span class="text-xs bg-accent/10 text-accent-dark px-2 py-0.5 rounded-full">Tu reporte</span>
+        {% else %}
+        <a href="{% url 'reports:flag' club.pk %}?type=REPORT&id={{ report.pk }}"
+           class="text-xs text-muted hover:text-red-500 transition-colors">
+          Reportar
+        </a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="prose prose-sm max-w-none text-ink/90 leading-relaxed whitespace-pre-line">
+      {{ report.text }}
+    </div>
+  </div>
+
+  <!-- Reacciones -->
+  {% if can_react %}
+  <div class="bg-white rounded-xl border border-subtle p-5 mb-6">
+    <h2 class="text-sm font-semibold text-ink mb-3">Reacciones</h2>
+    <div class="flex flex-wrap gap-2">
+      {% for rt, label in reaction_types %}
+      <button
+        hx-post="{% url 'reports:react' report.pk %}"
+        hx-vals='{"type": "{{ rt }}"}'
+        hx-target="this"
+        hx-swap="outerHTML"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors
+          {% if rt in user_reactions %}bg-accent/20 text-accent-dark border border-accent/30
+          {% else %}bg-warm text-muted border border-subtle hover:bg-accent/10{% endif %}">
+        {{ label }}
+        <span class="font-semibold">{{ reaction_counts|get_item:rt }}</span>
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Dos columnas: comentarios + temas propuestos -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <!-- Comentarios (2/3) -->
+    <div class="md:col-span-2">
+      <div class="bg-white rounded-xl border border-subtle p-5">
+        <h2 class="font-serif text-lg font-semibold mb-4">
+          Comentarios
+          {% if club.status == 'REVIEW' %}
+          <span class="text-xs font-normal text-muted ml-2">(disponibles en la fase de debate)</span>
+          {% endif %}
+        </h2>
+
+        <!-- Lista de comentarios -->
+        <div id="comments-list" class="divide-y divide-subtle mb-4">
+          {% for comment in comments %}
+          {% include "reports/includes/comment.html" %}
+          {% empty %}
+          <p class="text-sm text-muted py-4 text-center">Sin comentarios aun.</p>
+          {% endfor %}
+        </div>
+
+        <!-- Formulario de comentario -->
+        {% if can_comment %}
+        <form
+          hx-post="{% url 'reports:comment' report.pk %}"
+          hx-target="#comments-list"
+          hx-swap="beforeend"
+          hx-on::after-request="this.reset()">
+          {% csrf_token %}
+          <div class="mb-2">{{ comment_form.text }}</div>
+          <button type="submit"
+                  class="px-4 py-2 bg-ink text-white rounded-lg text-sm hover:bg-ink/90 transition-colors">
+            Comentar
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Temas propuestos (1/3) -->
+    <div>
+      <div class="bg-white rounded-xl border border-subtle p-5">
+        <h2 class="font-serif text-base font-semibold mb-3">Temas propuestos</h2>
+
+        {% include "reports/includes/topics_list.html" %}
+
+        {% if topic_form %}
+        <form
+          class="mt-4"
+          hx-post="{% url 'reports:propose_topic' club.pk %}"
+          hx-target="#topics-list"
+          hx-swap="outerHTML"
+          hx-on::after-request="this.reset()">
+          {% csrf_token %}
+          <div class="mb-2">{{ topic_form.text }}</div>
+          <button type="submit"
+                  class="w-full px-3 py-2 border border-subtle text-muted rounded-lg text-xs hover:bg-warm transition-colors">
+            Proponer tema
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

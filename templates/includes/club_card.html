@@ -1,0 +1,78 @@
+<!-- Card de club reutilizable -->
+<a href="{% url 'clubs:detail' club.pk %}" class="block group">
+  <div class="bg-white rounded-xl border border-subtle p-5 hover:shadow-md hover:border-accent/30 transition-all duration-200">
+
+    <!-- Header: libro + modo -->
+    <div class="flex items-start justify-between gap-3 mb-3">
+      <!-- Portada del libro -->
+      {% if club.book.cover_image_url %}
+      <img src="{{ club.book.cover_image_url }}"
+           alt="{{ club.book.title }}"
+           class="w-10 h-14 object-cover rounded shrink-0 shadow-sm">
+      {% endif %}
+
+      <div class="flex-1 min-w-0">
+        <h3 class="font-serif font-semibold text-ink text-lg leading-snug group-hover:text-accent-dark transition-colors truncate">
+          {{ club.name }}
+        </h3>
+        <p class="text-sm text-muted mt-0.5 truncate">
+          {{ club.book.title }} &mdash; {{ club.book.author }}
+        </p>
+      </div>
+
+      <!-- Status badge -->
+      <span class="shrink-0 text-xs font-medium px-2.5 py-1 rounded-full
+        {% if club.status == 'OPEN' %}bg-green-50 text-green-700
+        {% elif club.status == 'READING' %}bg-blue-50 text-blue-700
+        {% elif club.status == 'SUBMISSION' %}bg-yellow-50 text-yellow-700
+        {% elif club.status == 'REVIEW' %}bg-purple-50 text-purple-700
+        {% elif club.status == 'DISCUSSION' %}bg-orange-50 text-orange-700
+        {% elif club.status == 'CLOSED' %}bg-gray-100 text-gray-500
+        {% else %}bg-red-50 text-red-600{% endif %}">
+        {{ club.get_status_display }}
+      </span>
+    </div>
+
+    <!-- Description preview -->
+    {% if club.description %}
+    <p class="text-sm text-muted/80 line-clamp-2 mb-4">
+      {{ club.description|truncatewords:25 }}
+    </p>
+    {% endif %}
+
+    <!-- Footer: meta info -->
+    <div class="flex items-center gap-4 text-xs text-muted">
+      <!-- Members -->
+      <div class="flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        <span>{{ club.active_members_count }}/{{ club.max_members }}</span>
+      </div>
+
+      <!-- Language -->
+      <div class="flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/>
+        </svg>
+        <span>{{ club.get_language_display|default:club.language|upper }}</span>
+      </div>
+
+      <!-- Mode -->
+      <div class="flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+        </svg>
+        <span>{{ club.get_mode_display|truncatewords:1 }}</span>
+      </div>
+
+      <!-- Duration -->
+      <div class="flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span>{{ club.reading_duration_days }}d lectura</span>
+      </div>
+    </div>
+  </div>
+</a>

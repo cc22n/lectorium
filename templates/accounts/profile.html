@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Mi perfil — Lectorium{% endblock %}
+
+{% block content %}
+<div class="py-4">
+
+  <!-- Profile header -->
+  <div class="bg-white rounded-xl border border-subtle p-6 md:p-8 mb-6">
+    <div class="flex items-start gap-5">
+      <div class="w-16 h-16 rounded-full bg-accent/15 flex items-center justify-center text-xl font-serif font-semibold text-accent-dark shrink-0">
+        {{ user.display_name|default:user.username|truncatechars:1|upper }}
+      </div>
+      <div class="flex-1">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="font-serif text-2xl font-semibold">{{ user.display_name|default:user.username }}</h1>
+            <p class="text-sm text-muted">@{{ user.username }}</p>
+          </div>
+          <a href="{% url 'accounts:edit_profile' %}"
+             class="text-sm px-4 py-1.5 border border-subtle rounded-lg hover:border-ink/30 transition-colors">
+            Editar perfil
+          </a>
+        </div>
+        {% if user.bio %}
+        <p class="text-sm text-ink/80 mt-3">{{ user.bio }}</p>
+        {% endif %}
+
+        <!-- Stats -->
+        <div class="flex items-center gap-6 mt-4 text-sm">
+          <div>
+            <span class="font-semibold text-ink">{{ active_clubs_count }}</span>
+            <span class="text-muted">clubes activos</span>
+          </div>
+          <div>
+            <span class="font-semibold text-ink">{{ total_reports }}</span>
+            <span class="text-muted">reportes escritos</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active clubs -->
+  <section class="mb-8">
+    <h2 class="font-serif text-xl font-semibold mb-4">Clubes activos</h2>
+    {% if active_memberships %}
+    <div class="grid md:grid-cols-2 gap-4">
+      {% for membership in active_memberships %}
+        {% include "includes/club_card.html" with club=membership.club %}
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl border border-subtle p-8 text-center">
+      <p class="text-muted">No estas en ningun club activo.</p>
+      <a href="{% url 'clubs:explore' %}" class="text-sm text-accent-dark hover:text-accent mt-2 inline-block">
+        Explorar clubes &rarr;
+      </a>
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- My reports archive -->
+  <section>
+    <h2 class="font-serif text-xl font-semibold mb-4">Mis reportes</h2>
+    {% if reports %}
+    <div class="space-y-3">
+      {% for report in reports %}
+      <div class="bg-white rounded-xl border border-subtle p-5">
+        <div class="flex items-start justify-between gap-3 mb-2">
+          <div>
+            <h3 class="font-medium text-ink">{{ report.club.name }}</h3>
+            <p class="text-xs text-muted">{{ report.club.book.title }} &mdash; {{ report.submitted_at|date:"d M Y" }}</p>
+          </div>
+          <span class="text-xs text-muted">{{ report.reactions.count }} reacciones</span>
+        </div>
+        <p class="text-sm text-ink/80 line-clamp-3">{{ report.text|truncatewords:50 }}</p>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl border border-subtle p-8 text-center">
+      <p class="text-muted">Aun no has escrito ningun reporte.</p>
+    </div>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}
