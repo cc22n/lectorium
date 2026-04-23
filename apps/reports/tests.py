@@ -1,10 +1,9 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase, Client
 from django.urls import reverse
-from django.utils import timezone
 
-from apps.clubs.models import Club, ClubStatus, ClubMode, Membership, MemberRole
-from apps.clubs.tests import make_user, make_book, make_club, add_members
+from apps.clubs.models import ClubStatus, ClubMode, Membership, MemberRole
+from apps.clubs.tests import make_user, make_club, add_members
 from .models import Report, Reaction, ReactionType, VerificationAnswer, ContentFlag, FlagContentType
 from .utils import user_can_discuss
 
@@ -106,7 +105,7 @@ class SubmitReportViewTests(TestCase):
     def test_submit_creates_report(self):
         self.client.login(username="member", password="password123")
         url = reverse("reports:submit", kwargs={"club_pk": self.club.pk})
-        resp = self.client.post(url, {"text": "Mi reflexion sobre el libro."})
+        self.client.post(url, {"text": "Mi reflexion sobre el libro."})
         self.assertEqual(
             Report.objects.filter(user=self.member_user, club=self.club).count(), 1
         )
@@ -125,7 +124,7 @@ class SubmitReportViewTests(TestCase):
         self.club.save(update_fields=["status"])
         self.client.login(username="member", password="password123")
         url = reverse("reports:submit", kwargs={"club_pk": self.club.pk})
-        resp = self.client.post(url, {"text": "Intento en fase incorrecta"})
+        self.client.post(url, {"text": "Intento en fase incorrecta"})
         self.assertFalse(
             Report.objects.filter(user=self.member_user, club=self.club).exists()
         )

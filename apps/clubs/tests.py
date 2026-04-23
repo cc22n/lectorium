@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.books.models import Book
-from .models import Club, ClubStatus, ClubMode, Membership, MemberRole
+from .models import Club, ClubStatus, Membership, MemberRole
 
 _IN_MEMORY_CHANNEL_LAYERS = {
     "default": {
@@ -206,7 +206,7 @@ class JoinViewTests(TestCase):
         add_members(self.club, 9)  # llena el club (max=10, ya hay creator)
         self.client.login(username="joiner", password="password123")
         url = reverse("clubs:join", kwargs={"pk": self.club.pk})
-        resp = self.client.post(url)
+        self.client.post(url)
         # No debe crear membresia
         self.assertFalse(
             Membership.objects.filter(user=self.user, club=self.club).exists()
@@ -225,7 +225,7 @@ class JoinViewTests(TestCase):
         self.club.transition_to(ClubStatus.READING)
         self.client.login(username="joiner", password="password123")
         url = reverse("clubs:join", kwargs={"pk": self.club.pk})
-        resp = self.client.post(url)
+        self.client.post(url)
         self.assertFalse(
             Membership.objects.filter(user=self.user, club=self.club).exists()
         )
@@ -250,7 +250,7 @@ class LeaveViewTests(TestCase):
     def test_creator_cannot_leave(self):
         self.client.login(username="creator", password="password123")
         url = reverse("clubs:leave", kwargs={"pk": self.club.pk})
-        resp = self.client.post(url)
+        self.client.post(url)
         m = Membership.objects.get(user=self.creator, club=self.club)
         self.assertTrue(m.is_active)
 

@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Report, Comment, DiscussionTopic, VerificationAnswer, ContentFlag
+from .models import Report, Comment, DiscussionTopic, ContentFlag
 
 _input_cls = (
     "w-full border border-subtle rounded-lg p-3 text-sm "

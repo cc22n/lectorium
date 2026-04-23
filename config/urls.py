@@ -17,9 +17,3 @@ if settings.DEBUG:
 
 handler404 = "config.views.handler404"
 handler500 = "config.views.handler500"
-
-# Login redirect
-from django.conf import settings as s
-s.LOGIN_URL = "accounts:login"
-s.LOGIN_REDIRECT_URL = "clubs:home"
-s.LOGOUT_REDIRECT_URL = "clubs:home"

@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from apps.books.models import Book
 from apps.clubs.models import Club, ClubStatus, ClubMode, Membership, MemberRole
-from apps.reports.models import Report, Reaction, ReactionType, DiscussionTopic
+from apps.reports.models import Report, DiscussionTopic
 
 User = get_user_model()
 
@@ -73,7 +73,7 @@ class Command(BaseCommand):
                 display_name="Administrador",
             )
             users.append(u)
-            self.stdout.write(f"  Superusuario: admin")
+            self.stdout.write("  Superusuario: admin")
 
         for i in range(1, 6):
             uname = f"user{i}"

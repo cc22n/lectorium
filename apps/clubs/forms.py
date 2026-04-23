@@ -1,11 +1,9 @@
-import json
 from datetime import date
 
 from django import forms
 from django.conf import settings
-from django.utils import timezone
 
-from .models import Club, ClubMode
+from .models import ClubMode
 
 
 class CreateClubForm(forms.Form):

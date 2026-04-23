@@ -109,6 +109,6 @@ class GetOrCreateFromGoogleTests(TestCase):
             cover_image_url="",
             is_manual_entry=False,
         )
-        book = get_or_create_from_google(self.data)
+        get_or_create_from_google(self.data)
         existing.refresh_from_db()
         self.assertEqual(existing.cover_image_url, "https://books.google.com/cover.jpg")

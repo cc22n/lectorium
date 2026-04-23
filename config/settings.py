@@ -211,3 +211,11 @@ MAX_CLUBS_CREATED = 2
 MAX_CLUBS_ACTIVE = 3
 CREATOR_DECISION_DAYS = 3
 MIN_MEMBERS_CANCEL_THRESHOLD = 3
+
+# ==============================================================
+# AUTH REDIRECTS
+# ==============================================================
+
+LOGIN_URL = "accounts:login"
+LOGIN_REDIRECT_URL = "clubs:home"
+LOGOUT_REDIRECT_URL = "clubs:home"
