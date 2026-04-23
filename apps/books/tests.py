@@ -1,6 +1,6 @@
 from unittest.mock import patch, MagicMock
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
 from .models import Book
 from .services import search_google_books, get_or_create_from_google
@@ -34,6 +34,7 @@ MOCK_API_RESPONSE = {
 }
 
 
+@override_settings(GOOGLE_BOOKS_API_KEY="test-api-key")
 class SearchGoogleBooksTests(TestCase):
 
     @patch("apps.books.services.requests.get")
