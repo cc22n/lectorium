@@ -1,6 +1,5 @@
 from datetime import timedelta
 
-from asgiref.sync import sync_to_async
 from django.contrib.auth import get_user_model
 from django.test import TestCase, TransactionTestCase, Client, override_settings
 from django.urls import reverse
@@ -302,8 +301,12 @@ class _ScopeMiddleware:
 class DiscussionConsumerTests(TransactionTestCase):
     """
     Tests para el phase-gate y membership-gate del WebSocket consumer.
-    Usa TransactionTestCase porque las pruebas async no pueden compartir
-    la transaccion de TestCase.
+    Usa TransactionTestCase porque las conexiones de DB en hilos distintos
+    (sync_to_async dentro del consumer) necesitan ver datos ya commiteados.
+
+    Todo el setup de BD se hace en setUp() (sync) para evitar sync_to_async
+    en el cuerpo de los tests, que puede causar problemas de visibilidad de
+    transacciones en distintos entornos.
     """
 
     def setUp(self):
@@ -312,44 +315,45 @@ class DiscussionConsumerTests(TransactionTestCase):
         self.creator = make_user("ws_creator")
         self.member = make_user("ws_member")
         self.outsider = make_user("ws_outsider")
-        self.club = make_club(self.creator, status=ClubStatus.OPEN)
-        add_members(self.club, 4)
+
+        # Club en OPEN para verificar rechazo por fase incorrecta
+        self.open_club = make_club(self.creator, status=ClubStatus.OPEN)
+        add_members(self.open_club, 4)
         Membership.objects.get_or_create(
-            user=self.member, club=self.club,
+            user=self.member, club=self.open_club,
             defaults={"role": MemberRole.MEMBER},
         )
 
-    def _make_communicator(self, user, club_pk=None):
+        # Club directo en DISCUSSION para pruebas de aceptacion/rechazo de miembro
+        self.discussion_club = make_club(self.creator, status=ClubStatus.DISCUSSION)
+        add_members(self.discussion_club, 4)
+        Membership.objects.get_or_create(
+            user=self.member, club=self.discussion_club,
+            defaults={"role": MemberRole.MEMBER},
+        )
+
+    def _make_communicator(self, user, club_pk):
         from channels.testing import WebsocketCommunicator
-        pk = club_pk or self.club.pk
-        app = _ScopeMiddleware(self.Consumer.as_asgi(), user, pk)
-        return WebsocketCommunicator(app, f"/ws/clubs/{pk}/discussion/")
+        app = _ScopeMiddleware(self.Consumer.as_asgi(), user, club_pk)
+        return WebsocketCommunicator(app, f"/ws/clubs/{club_pk}/discussion/")
 
     async def test_rejects_connection_when_club_not_in_discussion(self):
-        """Consumer debe cerrar la conexion si el club no esta en fase DISCUSSION."""
-        communicator = self._make_communicator(self.member)
+        """Consumer cierra la conexion si el club no esta en fase DISCUSSION."""
+        communicator = self._make_communicator(self.member, self.open_club.pk)
         connected, _ = await communicator.connect()
         self.assertFalse(connected)
         await communicator.disconnect()
 
     async def test_accepts_member_in_discussion_phase(self):
         """Consumer acepta a un miembro activo cuando el club esta en DISCUSSION."""
-        await sync_to_async(self.club.transition_to)(ClubStatus.READING)
-        await sync_to_async(self.club.transition_to)(ClubStatus.SUBMISSION)
-        await sync_to_async(self.club.transition_to)(ClubStatus.REVIEW)
-        await sync_to_async(self.club.transition_to)(ClubStatus.DISCUSSION)
-        communicator = self._make_communicator(self.member)
+        communicator = self._make_communicator(self.member, self.discussion_club.pk)
         connected, _ = await communicator.connect()
         self.assertTrue(connected)
         await communicator.disconnect()
 
     async def test_rejects_non_member_in_discussion_phase(self):
-        """Consumer rechaza conexiones de usuarios que no son miembros activos."""
-        await sync_to_async(self.club.transition_to)(ClubStatus.READING)
-        await sync_to_async(self.club.transition_to)(ClubStatus.SUBMISSION)
-        await sync_to_async(self.club.transition_to)(ClubStatus.REVIEW)
-        await sync_to_async(self.club.transition_to)(ClubStatus.DISCUSSION)
-        communicator = self._make_communicator(self.outsider)
+        """Consumer rechaza conexiones de usuarios que no son miembros del club."""
+        communicator = self._make_communicator(self.outsider, self.discussion_club.pk)
         connected, _ = await communicator.connect()
         self.assertFalse(connected)
         await communicator.disconnect()
