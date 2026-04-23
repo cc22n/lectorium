@@ -98,7 +98,7 @@
 <script>
 (function() {
   const clubPk = "{{ club.pk }}";
-  const currentUser = "{{ request.user.display_name|default:request.user.username }}";
+  const currentUser = "{{ request.user.display_name|default:request.user.username|escapejs }}";
   const currentUserPk = {{ request.user.pk }};
 
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";

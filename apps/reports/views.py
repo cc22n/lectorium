@@ -1,10 +1,10 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
+from django.utils import timezone
 from django.views.decorators.http import require_POST
-
-from django.db.models import Q
 
 from apps.clubs.models import Club, ClubStatus, ClubMode, Membership, MemberRole
 from .forms import ReportForm, CommentForm, DiscussionTopicForm, VerificationForm, ContentFlagForm
@@ -135,10 +135,16 @@ def report_detail_view(request, report_pk):
         Reaction.objects.filter(report=report, user=request.user).values_list("type", flat=True)
     )
 
-    # Contar reacciones por tipo
-    reaction_counts = {}
+    # Contar reacciones por tipo con una sola query agregada
+    counts_qs = (
+        Reaction.objects.filter(report=report)
+        .values("type")
+        .annotate(total=Count("id"))
+    )
+    reaction_counts = {row["type"]: row["total"] for row in counts_qs}
+    # Garantizar que todos los tipos aparezcan aunque tengan 0 reacciones
     for rt, _ in ReactionType.choices:
-        reaction_counts[rt] = Reaction.objects.filter(report=report, type=rt).count()
+        reaction_counts.setdefault(rt, 0)
 
     comments = report.comments.select_related("user").all()
     topics = club.discussion_topics.select_related("user").all()
@@ -231,6 +237,11 @@ def add_comment_view(request, report_pk):
         if request.htmx:
             return render(request, "reports/includes/comment.html", {"comment": comment})
 
+        return redirect("reports:detail", report_pk=report_pk)
+
+    # Formulario invalido: devolver 422 para que HTMX no trate esto como exito
+    if request.htmx:
+        return HttpResponse(status=422)
     return redirect("reports:detail", report_pk=report_pk)
 
 
@@ -261,6 +272,11 @@ def propose_topic_view(request, club_pk):
                 "club": club,
             })
 
+        return redirect("clubs:detail", pk=club_pk)
+
+    # Formulario invalido
+    if request.htmx:
+        return HttpResponse(status=422)
     return redirect("clubs:detail", pk=club_pk)
 
 
@@ -358,6 +374,12 @@ def verify_view(request, club_pk):
 
     # MODERATE
     if existing:
+        if existing.passed:
+            # Ya aprobado: redirigir al debate si esta activo
+            if club.status == ClubStatus.DISCUSSION:
+                return redirect("reports:discussion", club_pk=club_pk)
+            messages.success(request, "Tu verificacion ya fue aprobada.")
+            return redirect("clubs:detail", pk=club_pk)
         return render(request, "reports/verify.html", {
             "club": club,
             "mode": "moderate_pending",
@@ -478,15 +500,20 @@ def _verify_content_in_club(content_type, content_id, club):
     return False
 
 
+def _resolve_content_by_type(content_type, content_id):
+    """Devuelve el objeto concreto a partir de un tipo y un ID."""
+    if content_type == FlagContentType.REPORT:
+        return Report.objects.filter(pk=content_id).select_related("user").first()
+    if content_type == FlagContentType.COMMENT:
+        return Comment.objects.filter(pk=content_id).select_related("user", "report").first()
+    if content_type == FlagContentType.DISCUSSION_TOPIC:
+        return DiscussionTopic.objects.filter(pk=content_id).select_related("user").first()
+    return None
+
+
 def _resolve_content_object(flag):
     """Devuelve el objeto concreto referenciado por un ContentFlag."""
-    if flag.content_type == FlagContentType.REPORT:
-        return Report.objects.filter(pk=flag.content_id).select_related("user").first()
-    if flag.content_type == FlagContentType.COMMENT:
-        return Comment.objects.filter(pk=flag.content_id).select_related("user", "report").first()
-    if flag.content_type == FlagContentType.DISCUSSION_TOPIC:
-        return DiscussionTopic.objects.filter(pk=flag.content_id).select_related("user").first()
-    return None
+    return _resolve_content_by_type(flag.content_type, flag.content_id)
 
 
 @login_required
@@ -517,7 +544,7 @@ def flag_content_view(request, club_pk):
         messages.error(request, "El contenido no pertenece a este club.")
         return redirect("clubs:detail", pk=club_pk)
 
-    # Evitar duplicados del mismo usuario
+    # Evitar duplicado del mismo usuario sobre el mismo contenido
     already_flagged = ContentFlag.objects.filter(
         reported_by=request.user,
         content_type=content_type,
@@ -526,6 +553,16 @@ def flag_content_view(request, club_pk):
     ).exists()
     if already_flagged:
         messages.info(request, "Ya reportaste este contenido anteriormente.")
+        return redirect("clubs:detail", pk=club_pk)
+
+    # Rate limit: maximo 5 flags por usuario por dia
+    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    flags_today = ContentFlag.objects.filter(
+        reported_by=request.user,
+        created_at__gte=today_start,
+    ).count()
+    if flags_today >= 5:
+        messages.warning(request, "Has alcanzado el limite de reportes por hoy. Intenta manana.")
         return redirect("clubs:detail", pk=club_pk)
 
     if request.method == "POST":
@@ -541,13 +578,8 @@ def flag_content_view(request, club_pk):
     else:
         form = ContentFlagForm()
 
-    # Obtener preview del contenido (lookup manual sin un ContentFlag guardado)
-    class _FakeFlag:
-        pass
-    fake = _FakeFlag()
-    fake.content_type = content_type
-    fake.content_id = content_id
-    content_obj = _resolve_content_object(fake)
+    # Obtener preview del contenido para mostrarlo en el formulario
+    content_obj = _resolve_content_by_type(content_type, content_id)
 
     return render(request, "reports/flag_form.html", {
         "club": club,
@@ -557,6 +589,44 @@ def flag_content_view(request, club_pk):
         "content_type_label": dict(FlagContentType.choices).get(content_type, ""),
         "content_obj": content_obj,
     })
+
+
+def _annotate_flags(flags):
+    """
+    Asocia cada ContentFlag con su objeto de contenido usando consultas en lote
+    por tipo (3 queries maximo para cualquier cantidad de flags).
+    """
+    flags = list(flags)  # materializar el queryset una sola vez
+
+    report_ids = [f.content_id for f in flags if f.content_type == FlagContentType.REPORT]
+    comment_ids = [f.content_id for f in flags if f.content_type == FlagContentType.COMMENT]
+    topic_ids = [f.content_id for f in flags if f.content_type == FlagContentType.DISCUSSION_TOPIC]
+
+    reports_map = {
+        r.pk: r
+        for r in Report.objects.filter(pk__in=report_ids).select_related("user")
+    }
+    comments_map = {
+        c.pk: c
+        for c in Comment.objects.filter(pk__in=comment_ids).select_related("user", "report")
+    }
+    topics_map = {
+        t.pk: t
+        for t in DiscussionTopic.objects.filter(pk__in=topic_ids).select_related("user")
+    }
+
+    result = []
+    for f in flags:
+        if f.content_type == FlagContentType.REPORT:
+            obj = reports_map.get(f.content_id)
+        elif f.content_type == FlagContentType.COMMENT:
+            obj = comments_map.get(f.content_id)
+        elif f.content_type == FlagContentType.DISCUSSION_TOPIC:
+            obj = topics_map.get(f.content_id)
+        else:
+            obj = None
+        result.append((f, obj))
+    return result
 
 
 @login_required
@@ -588,17 +658,10 @@ def moderation_view(request, club_pk):
         resolved=True,
     ).select_related("reported_by").order_by("-created_at")[:20]
 
-    # Anotar cada flag con su objeto de contenido
-    def annotate(flags):
-        result = []
-        for f in flags:
-            result.append((f, _resolve_content_object(f)))
-        return result
-
     return render(request, "reports/moderation.html", {
         "club": club,
-        "pending_flags": annotate(pending_flags),
-        "resolved_flags": annotate(resolved_flags),
+        "pending_flags": _annotate_flags(pending_flags),
+        "resolved_flags": _annotate_flags(resolved_flags),
     })
 
 

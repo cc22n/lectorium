@@ -37,18 +37,27 @@ def register_view(request):
 def profile_view(request):
     user = request.user
 
-    active_memberships = user.memberships.filter(
-        is_active=True,
-        club__status__in=["OPEN", "READING", "SUBMISSION", "REVIEW", "DISCUSSION"],
-    ).select_related("club", "club__book")
+    from apps.clubs.models import ClubStatus
+    active_statuses = [
+        ClubStatus.OPEN, ClubStatus.READING, ClubStatus.SUBMISSION,
+        ClubStatus.REVIEW, ClubStatus.DISCUSSION,
+    ]
+    active_memberships = list(
+        user.memberships.filter(
+            is_active=True,
+            club__status__in=active_statuses,
+        ).select_related("club", "club__book")
+    )
 
-    reports = user.reports.select_related("club", "club__book").prefetch_related("reactions")
+    reports = list(
+        user.reports.select_related("club", "club__book").prefetch_related("reactions")
+    )
 
     context = {
         "active_memberships": active_memberships,
-        "active_clubs_count": active_memberships.count(),
+        "active_clubs_count": len(active_memberships),
         "reports": reports,
-        "total_reports": reports.count(),
+        "total_reports": len(reports),
     }
     return render(request, "accounts/profile.html", context)
 

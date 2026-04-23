@@ -10,6 +10,7 @@ from .models import Book
 from .services import search_google_books, get_or_create_from_google
 
 
+@login_required
 def book_search_view(request):
     """
     HTMX endpoint: busca libros primero en BD local, luego en Google Books API
@@ -48,12 +49,16 @@ def save_google_book_view(request):
     que actualiza la seleccion de libro en el formulario de crear club.
     Llamado via HTMX POST cuando el usuario elige un resultado de la API.
     """
+    cover_raw = request.POST.get("cover_image_url", "").strip()
+    # Solo permitir URLs de portada con esquema HTTPS para evitar payloads maliciosos
+    cover_url = cover_raw if cover_raw.startswith("https://") else ""
+
     data = {
         "google_books_id": request.POST.get("google_books_id", "").strip(),
         "title": request.POST.get("title", "").strip(),
         "author": request.POST.get("author", "").strip(),
         "isbn": request.POST.get("isbn", "").strip(),
-        "cover_image_url": request.POST.get("cover_image_url", "").strip(),
+        "cover_image_url": cover_url,
     }
 
     if not data["title"]:

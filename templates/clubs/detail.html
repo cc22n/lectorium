@@ -45,7 +45,7 @@
 
         <!-- Meta -->
         <div class="flex flex-wrap items-center gap-4 mt-4 text-sm text-muted">
-          <span>{{ club.active_members_count }}/{{ club.max_members }} miembros</span>
+          <span>{{ members_count }}/{{ club.max_members }} miembros</span>
           <span>{{ club.language|upper }}</span>
           <span>{{ club.get_mode_display }}</span>
           <span>Creado por {{ club.creator.display_name|default:club.creator.username }}</span>
@@ -379,7 +379,7 @@
 
   <!-- Members list -->
   <div class="bg-white rounded-xl border border-subtle p-6 mt-6">
-    <h2 class="font-serif text-lg font-semibold mb-4">Miembros ({{ club.active_members_count }})</h2>
+    <h2 class="font-serif text-lg font-semibold mb-4">Miembros ({{ members_count }})</h2>
     <div class="space-y-2">
       {% for m in members %}
       <div class="flex items-center gap-3 py-2">

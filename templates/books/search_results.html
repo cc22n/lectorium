@@ -41,7 +41,7 @@ Muestra primero resultados locales (BD) y luego resultados de Google Books API.
   <button type="button"
           class="w-full text-left px-4 py-3 hover:bg-warm transition-colors border-b border-subtle last:border-0 flex items-center gap-3"
           hx-post="{% url 'books:save_from_google' %}"
-          hx-vals='{"google_books_id": "{{ book.google_books_id|escapejs }}", "title": "{{ book.title|escapejs }}", "author": "{{ book.author|escapejs }}", "isbn": "{{ book.isbn|escapejs }}", "cover_image_url": "{{ book.cover_image_url|escapejs }}"}'
+          hx-vals='{"google_books_id": "{{ book.google_books_id|escapejs|escape }}", "title": "{{ book.title|escapejs|escape }}", "author": "{{ book.author|escapejs|escape }}", "isbn": "{{ book.isbn|escapejs|escape }}", "cover_image_url": "{{ book.cover_image_url|escapejs|escape }}"}'
           hx-swap="none"
           hx-include="[name=csrfmiddlewaretoken]">
     {% if book.cover_image_url %}

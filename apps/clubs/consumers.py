@@ -25,6 +25,12 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
+        # Solo permitir conexion si el club esta en fase de debate activa
+        is_discussion = await self._is_club_in_discussion()
+        if not is_discussion:
+            await self.close()
+            return
+
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
@@ -51,6 +57,11 @@ class DiscussionConsumer(AsyncWebsocketConsumer):
         if action == "message":
             text = data.get("text", "").strip()
             if not text or len(text) > 1000:
+                return
+
+            # Re-verificar membresia y estado del club en cada mensaje
+            if not await self._is_active_member():
+                await self.close()
                 return
 
             is_discussion = await self._is_club_in_discussion()

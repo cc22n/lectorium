@@ -2,6 +2,11 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 
+# Importacion diferida para evitar ciclos, usamos los valores raw del enum
+# que ya estan definidos en clubs/models.py.
+_ACTIVE_CLUB_STATUSES = ["OPEN", "READING", "SUBMISSION", "REVIEW", "DISCUSSION"]
+
+
 class User(AbstractUser):
     """
     Usuario personalizado de Lectorium.
@@ -37,7 +42,7 @@ class User(AbstractUser):
         """Clubes activos donde participa (creados + unidos)."""
         return self.memberships.filter(
             is_active=True,
-            club__status__in=["OPEN", "READING", "SUBMISSION", "REVIEW", "DISCUSSION"],
+            club__status__in=_ACTIVE_CLUB_STATUSES,
         ).count()
 
     @property
@@ -46,7 +51,7 @@ class User(AbstractUser):
         return self.memberships.filter(
             is_active=True,
             role="CREATOR",
-            club__status__in=["OPEN", "READING", "SUBMISSION", "REVIEW", "DISCUSSION"],
+            club__status__in=_ACTIVE_CLUB_STATUSES,
         ).count()
 
     def can_create_club(self):

@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 from datetime import timedelta
 
@@ -189,7 +189,8 @@ class Club(models.Model):
     def transition_to(self, new_status):
         """
         Transiciona el club a un nuevo estado.
-        Valida que la transición sea válida.
+        Valida que la transicion sea valida.
+        Usa atomic para evitar estado inconsistente si el proceso falla a mitad.
         """
         valid_transitions = {
             ClubStatus.OPEN: [ClubStatus.READING, ClubStatus.CANCELLED],
@@ -202,16 +203,15 @@ class Club(models.Model):
         allowed = valid_transitions.get(self.status, [])
         if new_status not in allowed:
             raise ValueError(
-                f"Transición inválida: {self.status} → {new_status}. "
+                f"Transicion invalida: {self.status} -> {new_status}. "
                 f"Transiciones permitidas: {allowed}"
             )
 
-        # Si pasamos de OPEN a READING, calculamos todas las fechas
-        if self.status == ClubStatus.OPEN and new_status == ClubStatus.READING:
-            self.calculate_phase_dates()
-
-        self.status = new_status
-        self.save(update_fields=["status", "updated_at"] + self._phase_date_fields())
+        with transaction.atomic():
+            if self.status == ClubStatus.OPEN and new_status == ClubStatus.READING:
+                self.calculate_phase_dates()
+            self.status = new_status
+            self.save(update_fields=["status", "updated_at"] + self._phase_date_fields())
 
     def cancel(self, reason=""):
         """Cancela el club."""
@@ -287,6 +287,9 @@ class Membership(models.Model):
                 fields=["user", "club"],
                 name="unique_membership",
             ),
+        ]
+        indexes = [
+            models.Index(fields=["user", "club", "is_active"], name="membership_active_idx"),
         ]
 
     def __str__(self):

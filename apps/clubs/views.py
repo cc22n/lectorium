@@ -46,12 +46,12 @@ def explore_view(request):
     """Explorar clubes con filtros."""
     queryset = Club.objects.select_related("book", "creator").order_by("-created_at")
 
-    # Filtro por status
+    # Filtro por status.
+    # "all" muestra todos los estados. Cualquier otro valor filtra exactamente.
+    # Por defecto se muestran solo clubes OPEN.
     status = request.GET.get("status", "OPEN")
-    if status and status != "all":
+    if status != "all":
         queryset = queryset.filter(status=status)
-    elif status != "all":
-        queryset = queryset.exclude(status__in=[ClubStatus.CANCELLED])
 
     # Filtro por idioma
     language = request.GET.get("language")
@@ -81,7 +81,9 @@ def detail_view(request, pk):
         pk=pk,
     )
 
-    members = club.memberships.filter(is_active=True).select_related("user")
+    # Materializamos los miembros activos una sola vez; se usan en la vista
+    # y en el template para la lista y el conteo.
+    members = list(club.memberships.filter(is_active=True).select_related("user"))
 
     is_member = False
     membership = None
@@ -119,6 +121,7 @@ def detail_view(request, pk):
     return render(request, "clubs/detail.html", {
         "club": club,
         "members": members,
+        "members_count": len(members),
         "is_member": is_member,
         "membership": membership,
         "can_join": can_join,
@@ -134,10 +137,14 @@ def create_view(request):
     """Crear un club nuevo."""
     can_create = request.user.can_create_club()
 
-    if request.method == "POST" and can_create:
+    if request.method == "POST":
+        if not can_create:
+            messages.error(request, "No puedes crear mas clubes.")
+            return redirect("clubs:home")
+
         form = CreateClubForm(request.POST)
         if form.is_valid():
-            book = Book.objects.get(pk=form.cleaned_data["book_id"])
+            book = get_object_or_404(Book, pk=form.cleaned_data["book_id"])
 
             # Convertir date a datetime con timezone
             open_until_date = form.cleaned_data["open_until"]
@@ -220,12 +227,14 @@ def join_view(request, pk):
 
     messages.success(request, f"Te has unido a '{club.name}'!")
 
-    # Verificar si se alcanzo el minimo para arrancar automaticamente
-    if club.has_reached_minimum and club.status == ClubStatus.OPEN:
+    # Verificar si se alcanzo el minimo para arrancar automaticamente.
+    # Re-leer desde la BD para que active_members_count incluya al nuevo miembro.
+    club.refresh_from_db()
+    if club.status == ClubStatus.OPEN and club.has_reached_minimum:
         club.transition_to(ClubStatus.READING)
         messages.info(
             request,
-            f"El club ha alcanzado el minimo de miembros. La fase de lectura ha comenzado!"
+            "El club ha alcanzado el minimo de miembros. La fase de lectura ha comenzado!"
         )
 
     return redirect("clubs:detail", pk=pk)

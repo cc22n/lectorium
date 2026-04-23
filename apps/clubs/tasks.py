@@ -2,7 +2,11 @@ from datetime import timedelta
 
 from celery import shared_task
 from django.conf import settings
+from django.db.models import Count, Q
 from django.utils import timezone
+
+# Filtro reutilizable para contar solo miembros activos
+_ACTIVE_MEMBER_FILTER = Q(memberships__is_active=True)
 
 
 @shared_task
@@ -15,27 +19,37 @@ def check_club_transitions():
 
     now = timezone.now()
     creator_decision_days = getattr(settings, "CREATOR_DECISION_DAYS", 3)
+    cancel_threshold = settings.MIN_MEMBERS_CANCEL_THRESHOLD
+    min_platform = settings.PLATFORM_MIN_MEMBERS
 
     # 1. Cancelar clubes con pocos miembros activos (umbral <= 3, fases post-OPEN)
+    # Anotar conteo de miembros activos en una sola query para evitar N+1.
     active_statuses = [
         ClubStatus.READING,
         ClubStatus.SUBMISSION,
         ClubStatus.REVIEW,
         ClubStatus.DISCUSSION,
     ]
-    for club in Club.objects.filter(status__in=active_statuses):
-        if club.should_cancel_for_low_members():
+    for club in (
+        Club.objects
+        .filter(status__in=active_statuses)
+        .annotate(member_count=Count("memberships", filter=_ACTIVE_MEMBER_FILTER))
+    ):
+        if club.member_count <= cancel_threshold:
             club.cancel(reason="Miembros activos por debajo del umbral minimo")
 
-    # 2. Clubes OPEN con fecha vencida
-    for club in Club.objects.filter(status=ClubStatus.OPEN, open_until__lte=now):
-        count = club.active_members_count
-        min_platform = settings.PLATFORM_MIN_MEMBERS
+    # 2. Clubes OPEN con fecha vencida — anotar conteo para evitar N+1
+    for club in (
+        Club.objects
+        .filter(status=ClubStatus.OPEN, open_until__lte=now)
+        .annotate(member_count=Count("memberships", filter=_ACTIVE_MEMBER_FILTER))
+    ):
+        count = club.member_count
 
         if count < min_platform:
             # Menos de 5 miembros: cancelar
             club.cancel(reason="No alcanzo el minimo de la plataforma (5 miembros)")
-        elif club.has_reached_minimum:
+        elif count >= club.min_members:
             # Alcanzo el minimo del creador: iniciar
             club.transition_to(ClubStatus.READING)
         else:

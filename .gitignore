@@ -11,7 +11,8 @@ build/
 db.sqlite3
 staticfiles/
 media/
-
+.claude
+CLAUDE.md
 # Environment
 .env
 .env.prod

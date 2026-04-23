@@ -1,12 +1,19 @@
 from datetime import timedelta
 
+from asgiref.sync import sync_to_async
 from django.contrib.auth import get_user_model
-from django.test import TestCase, Client
+from django.test import TestCase, TransactionTestCase, Client, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from apps.books.models import Book
 from .models import Club, ClubStatus, ClubMode, Membership, MemberRole
+
+_IN_MEMORY_CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}
 
 User = get_user_model()
 
@@ -269,3 +276,80 @@ class DetailViewTests(TestCase):
         url = reverse("clubs:detail", kwargs={"pk": 99999})
         resp = self.client.get(url)
         self.assertEqual(resp.status_code, 404)
+
+
+# ==============================================================
+# TESTS DEL CONSUMER WEBSOCKET (phase-gate y membership)
+# ==============================================================
+
+class _ScopeMiddleware:
+    """Inyecta user y url_route en el scope WebSocket para testing sin auth middleware."""
+    def __init__(self, inner, user, club_pk):
+        self.inner = inner
+        self.user = user
+        self.club_pk = club_pk
+
+    async def __call__(self, scope, receive, send):
+        scope = {
+            **scope,
+            "user": self.user,
+            "url_route": {"kwargs": {"club_pk": str(self.club_pk)}},
+        }
+        await self.inner(scope, receive, send)
+
+
+@override_settings(CHANNEL_LAYERS=_IN_MEMORY_CHANNEL_LAYERS)
+class DiscussionConsumerTests(TransactionTestCase):
+    """
+    Tests para el phase-gate y membership-gate del WebSocket consumer.
+    Usa TransactionTestCase porque las pruebas async no pueden compartir
+    la transaccion de TestCase.
+    """
+
+    def setUp(self):
+        from apps.clubs.consumers import DiscussionConsumer
+        self.Consumer = DiscussionConsumer
+        self.creator = make_user("ws_creator")
+        self.member = make_user("ws_member")
+        self.outsider = make_user("ws_outsider")
+        self.club = make_club(self.creator, status=ClubStatus.OPEN)
+        add_members(self.club, 4)
+        Membership.objects.get_or_create(
+            user=self.member, club=self.club,
+            defaults={"role": MemberRole.MEMBER},
+        )
+
+    def _make_communicator(self, user, club_pk=None):
+        from channels.testing import WebsocketCommunicator
+        pk = club_pk or self.club.pk
+        app = _ScopeMiddleware(self.Consumer.as_asgi(), user, pk)
+        return WebsocketCommunicator(app, f"/ws/clubs/{pk}/discussion/")
+
+    async def test_rejects_connection_when_club_not_in_discussion(self):
+        """Consumer debe cerrar la conexion si el club no esta en fase DISCUSSION."""
+        communicator = self._make_communicator(self.member)
+        connected, _ = await communicator.connect()
+        self.assertFalse(connected)
+        await communicator.disconnect()
+
+    async def test_accepts_member_in_discussion_phase(self):
+        """Consumer acepta a un miembro activo cuando el club esta en DISCUSSION."""
+        await sync_to_async(self.club.transition_to)(ClubStatus.READING)
+        await sync_to_async(self.club.transition_to)(ClubStatus.SUBMISSION)
+        await sync_to_async(self.club.transition_to)(ClubStatus.REVIEW)
+        await sync_to_async(self.club.transition_to)(ClubStatus.DISCUSSION)
+        communicator = self._make_communicator(self.member)
+        connected, _ = await communicator.connect()
+        self.assertTrue(connected)
+        await communicator.disconnect()
+
+    async def test_rejects_non_member_in_discussion_phase(self):
+        """Consumer rechaza conexiones de usuarios que no son miembros activos."""
+        await sync_to_async(self.club.transition_to)(ClubStatus.READING)
+        await sync_to_async(self.club.transition_to)(ClubStatus.SUBMISSION)
+        await sync_to_async(self.club.transition_to)(ClubStatus.REVIEW)
+        await sync_to_async(self.club.transition_to)(ClubStatus.DISCUSSION)
+        communicator = self._make_communicator(self.outsider)
+        connected, _ = await communicator.connect()
+        self.assertFalse(connected)
+        await communicator.disconnect()
