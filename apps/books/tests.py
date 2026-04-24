@@ -34,9 +34,12 @@ MOCK_API_RESPONSE = {
 }
 
 
-@override_settings(GOOGLE_BOOKS_API_KEY="test-api-key")
 class SearchGoogleBooksTests(TestCase):
 
+    # override_settings se aplica por metodo (no por clase) para garantizar
+    # que el contexto este activo ANTES de que @patch inyecte el mock_get.
+
+    @override_settings(GOOGLE_BOOKS_API_KEY="test-api-key")
     @patch("apps.books.services.requests.get")
     def test_returns_parsed_books(self, mock_get):
         mock_resp = MagicMock()
@@ -51,6 +54,7 @@ class SearchGoogleBooksTests(TestCase):
         self.assertEqual(results[0]["title"], "Cien anos de soledad")
         self.assertEqual(results[0]["isbn"], "9780060883287")
 
+    @override_settings(GOOGLE_BOOKS_API_KEY="test-api-key")
     @patch("apps.books.services.requests.get")
     def test_cover_url_uses_https(self, mock_get):
         mock_resp = MagicMock()
@@ -61,6 +65,7 @@ class SearchGoogleBooksTests(TestCase):
         results = search_google_books("garcia marquez")
         self.assertTrue(results[0]["cover_image_url"].startswith("https://"))
 
+    @override_settings(GOOGLE_BOOKS_API_KEY="test-api-key")
     @patch("apps.books.services.requests.get")
     def test_returns_empty_list_on_network_error(self, mock_get):
         import requests as req_lib
